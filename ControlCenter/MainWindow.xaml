@@ -1,0 +1,73 @@
+﻿    <Window x:Class="ControlCenter.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:m="clr-namespace:Microsoft.Maps.MapControl.WPF;assembly=Microsoft.Maps.MapControl.WPF"
+        xmlns:local="clr-namespace:ControlCenter"
+        xmlns:mv="clr-namespace:ControlCenter.ModelViews"
+        xmlns:converters="clr-namespace:ControlCenter.Converters"
+        xmlns:usercontrols="clr-namespace:WExtraControlLibrary.UserControls;assembly=WExtraControlLibrary"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:dragable="clr-namespace:Dragablz;assembly=Dragablz"
+        xmlns:processing="clr-namespace:ControlCenter.UserControls.PostProcessingControls"
+        xmlns:properties="clr-namespace:ControlCenter.Properties"
+        mc:Ignorable="d"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        Background="{DynamicResource MaterialDesignPaper}"
+        TextElement.FontWeight="Medium"
+        TextElement.FontSize="12"
+        FontFamily="pack://application:,,,/MaterialDesignThemes.Wpf;component/Resources/Roboto/#Roboto"
+        Title="Drobit PPK" Height="860" Width="1280" Closed="Window_Closed"
+        Icon="Resources/drobit_minilogo.png">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/ResourceDictCC.xaml"></ResourceDictionary>
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ListBox.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <materialDesign:DialogHost Identifier="RootDialog" Loaded="DialogHost_Loaded">
+        <Border BorderThickness="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border.BorderBrush>
+                <SolidColorBrush Color="{DynamicResource C_redish}"/>
+            </Border.BorderBrush>
+            <Grid x:Name="MainPanel" Margin="5,5,5,5">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="60"/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <materialDesign:ColorZone Padding="5" materialDesign:ShadowAssist.ShadowDepth="Depth0"
+                                            Mode="Light" DockPanel.Dock="Top" Grid.Row="0" HorizontalContentAlignment="Stretch">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                            <ColumnDefinition Width="0.7*"/>
+                            <ColumnDefinition Width="0.3*"/>
+                        </Grid.ColumnDefinitions>
+                        <Image Grid.Column="0" Source="Resources/logo.png" Margin="0,0,0,10" Visibility="Visible"/>
+                        <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontSize="20">
+                            <Run Text="Drobit PPK"/>
+                            <Run Text="{Binding AssemblyVersion, Mode=OneWay, Converter={converters:AssemblyVersionConverter}}"/>
+                        </TextBlock>
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Visible">
+                            <!--<TextBlock Text="Live" Margin="0,0,10,0" FontSize="12"/>-->
+                            <!--<ToggleButton ToolTip="Mode Live/Processing" Width="50" Checked="ModeCheckChanged" Unchecked="ModeCheckChanged"/>-->
+                            <!--<TextBlock Text="Processing" Margin="10,0,0,0" FontSize="12"/>-->
+                            <materialDesign:PopupBox PlacementMode="BottomAndAlignRightEdges" StaysOpen="False" Margin="20,0">
+                                <Button Content="Settings" Click="Button_Click"/>
+                            </materialDesign:PopupBox>
+                        </StackPanel>
+                    </Grid>
+                </materialDesign:ColorZone>
+                <Grid x:Name="MainPanelProcessing" Visibility="Visible" Grid.Row="1" Style="{StaticResource VisibleAnimation}">
+                    <processing:JobProjectContainerListControl x:Name="JobContainer"/>
+                </Grid>
+            </Grid>
+        </Border>
+    </materialDesign:DialogHost>
+</Window>

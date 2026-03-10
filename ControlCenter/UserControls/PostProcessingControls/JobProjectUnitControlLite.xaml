@@ -1,0 +1,71 @@
+﻿<UserControl x:Class="ControlCenter.UserControls.PostProcessingControls.JobProjectUnitControlLite"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:ControlCenter.UserControls.PostProcessingControls"
+             xmlns:conv="clr-namespace:ControlCenter.Converters"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:system="clr-namespace:System;assembly=mscorlib"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300">
+    <Grid>
+        <materialDesign:Card HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+            <materialDesign:DialogHost x:Name="dialogHostJobProject" Identifier="{Binding Name}" DialogClosing="dialogHostJobProject_DialogClosing">
+                <materialDesign:DialogHost.DialogContent>
+                    <StackPanel Orientation="Vertical" Margin="16">
+                        <TextBlock Text="Delete disk files?" HorizontalAlignment="Center"/>
+                        <StackPanel Margin="10" Orientation="Horizontal">
+                            <Button Content="Yes" Command="materialDesign:DialogHost.CloseDialogCommand" Margin="10" CommandParameter="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}, Path=DataContext.RemoveProcessingProjectAndDiskFilesCommand}">
+                                <!--<Button.CommandParameter>
+                                <system:Boolean>True</system:Boolean>
+                            </Button.CommandParameter>-->
+                            </Button>
+                            <Button Content="No" Command="materialDesign:DialogHost.CloseDialogCommand" Margin="10" CommandParameter="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type UserControl}, AncestorLevel=2}, Path=DataContext.RemoveProcessingProjectCommand}">
+                                <!--<Button.CommandParameter>
+                                    <system:Boolean>True</system:Boolean>
+                                </Button.CommandParameter>-->
+                            </Button>
+                            <Button Content="Cancel" Command="materialDesign:DialogHost.CloseDialogCommand" Margin="10">
+                                <!--<Button.CommandParameter>
+                                    <system:Boolean>False</system:Boolean>
+                                </Button.CommandParameter>-->
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </materialDesign:DialogHost.DialogContent>
+                <Border BorderThickness="0,2,0,0" BorderBrush="Red">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+
+
+                        <TextBlock Margin="10" Text="{Binding Name}" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="16"/>
+                        <local:JobPlayStopControlTiny Grid.Column="0" Grid.ColumnSpan="3"/>
+
+                        <!--<materialDesign:ColorZone Mode="Accent" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition/>
+                                <ColumnDefinition/>
+                                <ColumnDefinition/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Margin="10" Text="{Binding Name}" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="16"/>
+                            <local:JobPlayStopControlTiny Grid.Column="0" Grid.ColumnSpan="3"/>
+                            -->
+                        <!--<Button IsEnabled="{Binding Phase, Converter={conv:WorkPhase2AllowModifications}}" Content="{materialDesign:PackIcon Kind=ContentSaveAll}" Style="{StaticResource MaterialDesignFloatingActionMiniDarkButton}" Grid.Column="1" Width="32" Height="32" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0" Command="{Binding Save2DiskCommand}"/>-->
+                        <!--
+                        </Grid>
+                        
+                    </materialDesign:ColorZone>-->
+                        <!--<Button IsEnabled="{Binding Phase, Converter={conv:WorkPhase2AllowModifications}}" Content="{materialDesign:PackIcon Kind=Delete}" Style="{StaticResource MaterialDesignFloatingActionMiniAccentButton}" Grid.Column="1" Width="32" Height="32" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,-16" Command="{x:Static materialDesign:DialogHost.OpenDialogCommand}"/>-->
+
+                        <!--<local:JobPlayStopControlLite Grid.Row="1" Grid.ColumnSpan="2"/>-->
+                    </Grid>
+                </Border>
+                
+            </materialDesign:DialogHost>
+        </materialDesign:Card>
+    </Grid>
+</UserControl>

@@ -1,0 +1,85 @@
+﻿using ControlCenter.Base;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ControlCenter.Models
+{
+    public class Recording : BindableModelBase
+    {
+        //-----------------------------------------------
+        private string drobitSerial;
+        public string DrobitSerial
+        {
+            get { return drobitSerial; }
+            set { Set(ref drobitSerial, value); }
+        }
+
+        private string drobitName;
+        public string DrobitName
+        {
+            get { return drobitName; }
+            set { Set(ref drobitName, value); }
+        }
+
+        private string name;
+        public string Name
+        {
+            get { return name; }
+            set { Set(ref name, value); }
+        }
+
+        private int camTriggers;
+        public int CamTriggers
+        {
+            get { return camTriggers; }
+            set { Set(ref camTriggers, value); }
+        }
+
+        private TimeSpan duration;
+        public TimeSpan Duration
+        {
+            get { return duration; }
+            set { Set(ref duration, value); }
+        }
+
+        private DateTime date;
+        public DateTime Date
+        {
+            get { return date; }
+            set { Set(ref date, value); }
+        }
+
+        // INT o EXT
+        private string locationType;
+        public string LocationType
+        {
+            get { return locationType; }
+            set { Set(ref locationType, value); }
+        }
+
+        // Path inside Edison to parent folder + name
+        private string remoteContainerPath;
+        public string RemoteContainerPath
+        {
+            get { return remoteContainerPath; }
+            set { Set(ref remoteContainerPath, value); }
+        }
+
+        public string IP { set; get; }
+        public string User { set; get; }
+        public string Passwd { set; get; }
+
+
+
+        //-----------------------------------------------
+
+        public Recording()
+        {
+            User = "drobit";
+            Passwd = "drobit";
+        }
+    }
+}

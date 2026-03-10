@@ -1,0 +1,978 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using ControlCenter.Models;
+using CommsDataTypes;
+using Communications;
+using DrobitExtras;
+using System.Threading;
+using System.Windows.Input;
+using WExtraControlLibrary.Extras;
+using ControlCenter.Base;
+using WExtraControlLibrary.UserControls;
+using System.Windows.Threading;
+using WExtraControlLibrary.UserControls.LogControl;
+using System.Windows;
+using ControlCenter.UserControls.GMAPUC;
+using ControlCenter.UserControls.ConfigControl;
+using ControlCenter.Models.JOBS;
+using MaterialDesignThemes.Wpf;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System.IO;
+
+namespace ControlCenter.ModelViews
+{
+    public class ControlCenterViewModel : BindableModelBase
+    {
+        public const string CC_ID = "ControlCenter";
+
+        public const int TCP_DEFAULT_PORT = 34000;
+
+        #region Communicator
+        private BroadcastNETCommunicator netBonjourCommunicator;
+        private TCPNETCommunicator tcpCommunicator;
+        #endregion
+
+        #region Variables
+        public ObservableDictionary<string,DrobitEq> DrobitEqList { get; set; } = new ObservableDictionary<string,DrobitEq>();
+
+        // Store logs entries
+        public ObservableCollection<LogEntry> LogEntries { get; set; } = new ObservableCollection<LogEntry>();
+
+        private bool isOnline;
+        public bool IsOnline
+        {
+            get { return isOnline; }
+            set { Set(ref isOnline, value); }
+        }
+
+
+        private bool isRecLinked;
+        public bool IsRecLinked
+        {
+            get { return isRecLinked; }
+            set { Set(ref isRecLinked, value); }
+        }
+
+        private bool isAnyBodyRecording;
+        public bool IsAnyBodyRecording
+        {
+            get { return isAnyBodyRecording; }
+            set { Set(ref isAnyBodyRecording, value); }
+        }
+
+        #endregion
+
+        #region ICommand
+        // Comand from UI REC
+        private ICommand _recClickCommand;
+        public ICommand RecClickCommand
+        {
+            get
+            {
+                _recClickCommand = new CommandHandler(ButtonRECAction, true);
+                return _recClickCommand;
+            }
+        }
+
+        // Comand from UI ActivateBoard
+        private ICommand _activateBoardCommand;
+        public ICommand ActivateBoardCommand
+        {
+            get
+            {
+                _activateBoardCommand = new CommandHandler(ActivateBoardAction, true);
+                return _activateBoardCommand;
+            }
+        }
+
+        // Comand from UI StartMagCalib
+        private ICommand _magCalibStartClickCommandB;
+        public ICommand StartMagClickCommandB
+        {
+            get
+            {
+                _magCalibStartClickCommandB = new CommandHandler(StartMagCalibActionB, true);
+                return _magCalibStartClickCommandB;
+            }
+        }
+
+        // Comand from UI StopMagCalib
+        private ICommand _magCalibStopClickCommandB;
+        public ICommand StopMagClickCommandB
+        {
+            get
+            {
+                _magCalibStopClickCommandB = new CommandHandler(StopMagCalibActionB, true);
+                return _magCalibStopClickCommandB;
+            }
+        }
+
+        // Comand from UI StartMagCalib
+        private ICommand _magCalibStartClickCommandH;
+        public ICommand StartMagClickCommandH
+        {
+            get
+            {
+                _magCalibStartClickCommandH = new CommandHandler(StartMagCalibActionH, true);
+                return _magCalibStartClickCommandH;
+            }
+        }
+
+        // Comand from UI StopMagCalib
+        private ICommand _magCalibStopClickCommandH;
+        public ICommand StopMagClickCommandH
+        {
+            get
+            {
+                _magCalibStopClickCommandH = new CommandHandler(StopMagCalibActionH, true);
+                return _magCalibStopClickCommandH;
+            }
+        }
+
+        // Comand from UI StopMagCalib
+        //private ICommand _magCalibSaveClickCommand;
+        //public ICommand SaveMagClickCommand
+        //{
+        //    get
+        //    {
+        //        _magCalibSaveClickCommand = new CommandHandler(SaveMagCalibAction, true);
+        //        return _magCalibSaveClickCommand;
+        //    }
+        //}
+
+        // Comand from UI StopMagCalib
+        private ICommand _reloadConfigClickCommand;
+        public ICommand ReloadConfigClickCommand
+        {
+            get
+            {
+                _reloadConfigClickCommand = new CommandHandler(ReloadConfigAction, true);
+                return _reloadConfigClickCommand;
+            }
+        }
+
+        // Comand from UI StopMagCalib
+        private ICommand _saveConfigClickCommand;
+        public ICommand SaveConfigClickCommand
+        {
+            get
+            {
+                _saveConfigClickCommand = new CommandHandler(SaveConfigAction, true);
+                return _saveConfigClickCommand;
+            }
+        }
+
+        // Comand from UI StopMagCalib
+        private ICommand _startAccClickCommandB;
+        public ICommand StartAccClickCommandB
+        {
+            get
+            {
+                _startAccClickCommandB = new CommandHandler(StartAccActionB, true);
+                return _startAccClickCommandB;
+            }
+        }
+
+        private ICommand _startAccClickCommandH;
+        public ICommand StartAccClickCommandH
+        {
+            get
+            {
+                _startAccClickCommandH = new CommandHandler(StartAccActionH, true);
+                return _startAccClickCommandH;
+            }
+        }
+
+        // Comand from UI StopMagCalib
+        private ICommand _refreshRemoteProjectsCommand;
+        public ICommand RefreshRemoteProjectsCommand
+        {
+            get
+            {
+                _refreshRemoteProjectsCommand = new CommandHandler(RefreshRemoteRecordings, true);
+                return _refreshRemoteProjectsCommand;
+            }
+        }
+
+        // Comand to Shutdown Drobit
+        private ICommand _shutDownClickCommand;
+        public ICommand ShutDownClickCommand
+        {
+            get
+            {
+                _shutDownClickCommand = new CommandHandler(ShutDownDrobitCallback, true);
+                return _shutDownClickCommand;
+            }
+        }
+
+        private void ShutDownDrobitCallback(object obj)
+        {
+            if (obj == null)
+                return;
+
+            KeyValuePair<string, DrobitEq> pair = (KeyValuePair<string, DrobitEq>)obj;
+            DrobitEq d = pair.Value;
+
+            HMIMessageBase m = HMIMessageBaseFactory.createMessage();
+            m.Type = HMIMessageBase.TYPE.CMD;
+            m.Subtype = HMIMessageBase.SUBTYPE.CMD_DROBIT_SHUTDOWN;
+            m.DST_ID = d.Serial;
+
+            tcpCommunicator.send(d.Serial, m.serialize());
+        }
+        #endregion
+
+        private void RefreshRemoteRecordings(object obj)
+        {
+            if (obj == null)
+                return;
+
+            DrobitEq d = (DrobitEq)obj;
+
+            d.RemoteRecordingList.Clear();
+
+            HMIMessageBase m = HMIMessageBaseFactory.createMessage();
+            m.Type = HMIMessageBase.TYPE.CMD;
+            m.Subtype = HMIMessageBase.SUBTYPE.CMD_REQ_REMOTEPROJECTS;
+            m.DST_ID = d.Serial;
+
+            tcpCommunicator.send(d.Serial, m.serialize());
+        }
+
+        public GMAPUC MapC { get; set; }
+        public ConfigControl ConfControl { get; set; }
+
+        public ControlCenterViewModel()
+        {
+            tcpCommunicator = new TCPNETCommunicator();
+            netBonjourCommunicator = new BroadcastNETCommunicator();
+            //MapVM = new GMAPVM();
+
+        }
+
+        public void init()
+        {
+            // Init Communicators
+            netBonjourCommunicator.init("255.255.255.255:9051");
+            tcpCommunicator.init("");
+
+            // Subscribe ControlCenterViewModel to receive HMI messages from Drobits
+            netBonjourCommunicator.DataReadyEvent += BonjourCommunicator_DataReadyEvent;
+            tcpCommunicator.DataReadyEvent += TcpCommunicator_DataReadyEvent;
+            tcpCommunicator.DrobitTCPConnectionStateEvent += TcpCommunicator_DrobitTCPConnectionStateEvent;
+
+            IsOnline = true;
+        }
+
+        private void TcpCommunicator_DrobitTCPConnectionStateEvent(string ID, string IP, bool connected)
+        {
+            if (connected)
+            {
+                if (!DrobitEqList.ContainsKey(ID))
+                { 
+                    DrobitEq d = new DrobitEq();
+                    d.Serial = ID;
+
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => DrobitEqList.Add(ID, d)));
+
+                    // Request parameters
+                    RequestDrobitParameterValues(d.Serial);
+                    System.Diagnostics.Debug.WriteLine("New Drobit: " + ID);
+                }
+            }
+            else
+            {
+                if (DrobitEqList.ContainsKey(ID))
+                {
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => DrobitEqList.Remove(ID)));
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => MapC.Remove(ID)));
+                }
+            }
+            
+        }
+
+        private void TcpCommunicator_DataReadyEvent(string jsonString, string ip)
+        {
+            // Try multiples
+            List<HMIMessageBase> listMessages = new List<HMIMessageBase>();
+
+            JsonTextReader reader = new JsonTextReader(new StringReader(jsonString));
+            reader.SupportMultipleContent = true;
+            while (true)
+            {
+                if (!reader.Read())
+                {
+                    break;
+                }
+                JsonSerializer serializer = new JsonSerializer();
+                HMIMessageBase message = serializer.Deserialize<HMIMessageBase>(reader);
+                message.loadExtraData();
+                listMessages.Add(message);
+            }
+
+
+            foreach (HMIMessageBase m in listMessages)
+                ParseMessage(m, ip);
+        }
+
+        private void BonjourCommunicator_DataReadyEvent(string jsonString, string ip)
+        {
+            HMIMessageBase message = HMIMessageBase.deserialize(jsonString);
+
+            ParseMessageBonjour(message, ip);
+        }
+
+        private void ParseMessageBonjour(HMIMessageBase message, string ip)
+        {
+            // Filter message if it is not directed to ControlCenter
+            if (!message.DST_ID.Equals(CC_ID))
+                return;
+            else if (message.Type == HMIMessageBase.TYPE.BONJOUR)
+            {
+                //Launch TCP Connection if not already
+                if (!DrobitEqList.ContainsKey(message.SRC_ID))
+                {
+                    tcpCommunicator.Connect2Equipment(message.SRC_ID, ip, TCP_DEFAULT_PORT);
+                }
+            }
+        }
+
+        private void ParseMessage(HMIMessageBase message, string ip)
+        {
+            // Filter message if it is not directed to ControlCenter
+            if (!message.DST_ID.Equals(CC_ID))
+                return;
+
+            // Fill DrobitEq
+            DrobitEq d = null;
+
+            /*if (!DrobitEqList.ContainsKey(message.SerialNumber))
+            {
+                d = new DrobitEq();
+                d.Serial = message.SerialNumber;
+                var uiContext = SynchronizationContext.Current;
+                uiContext.Send(x => DrobitEqList.Add(message.SerialNumber, d), null);
+
+                // Request parameters
+                RequestDrobitParameterValues(d.Serial);
+                System.Diagnostics.Debug.WriteLine("New Drobit: " + d.Serial);
+
+            }*/
+            //else
+            //{
+            DrobitEqList.TryGetValue(message.SerialNumber, out d);
+            System.Diagnostics.Debug.WriteLineIf(message.Subtype.Equals(HMIMessageBase.SUBTYPE.STA_PARAM_VALUE), "New MESG: " + message.Subtype);
+            //}
+
+            // Common data
+            d.LocalDrobitTime = message.LocalTime;
+            d.Name = message.Name;
+            d.FWVersion = message.Version;
+            d.Ip = ip;
+
+            // ExtraData
+            switch (message.Subtype)
+            {
+                case HMIMessageBase.SUBTYPE.STA_STATUS_SHORT:
+                    MessageExtraDataStatusShort m1 = (MessageExtraDataStatusShort)message.getExtraData();
+                    d.Health.IsReady = m1.isReady;
+                    d.Rec.IsRecording = m1.isRecording;
+                    d.Rec.RecName = m1.recName;
+                    d.GNSS = new GNSSStatus(m1.Lat, m1.Lon, m1.Alt, m1.nSV);
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => MapC.UpdateFromDrobit(d)));
+                    break;
+                case HMIMessageBase.SUBTYPE.STA_ATTITUDE:
+                    MessageExtraDataAttitude m2 = (MessageExtraDataAttitude)message.getExtraData();
+                    AttitudeStatus a = m2.IMU_ID == 0 ? d.AttitudeBODY : d.AttitudeHOTSHOE;
+                    a.Roll = m2.Roll;
+                    a.Pitch = m2.Pitch;
+                    a.Yaw = m2.Yaw;
+                    break;
+                case HMIMessageBase.SUBTYPE.STA_STATUS_LONG:
+                    MessageExtraDataStatusLong m4 = (MessageExtraDataStatusLong)message.getExtraData();
+                    d.Health.IsReady = m4.isReady;
+                    d.Rec.IsRecording = m4.isRecording;
+                    d.Rec.RecName = m4.recName;
+                    d.GNSS = new GNSSStatus(m4.Lat, m4.Lon, m4.Alt, m4.nSV);
+                    d.Storage.BFreeExternal = m4.BFreeExternal;
+                    d.Storage.BFreeInternal = m4.BFreeInternal;
+                    d.Power.BattPercent = m4.batPercent;
+                    d.Power.BattVoltage = m4.batVoltage;
+                    d.Power.BoardActive = m4.gnssEnabled;
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => MapC.UpdateFromDrobit(d)));
+                    break;
+                case HMIMessageBase.SUBTYPE.STA_TRIGGER_EVENT:
+                    MessageExtraDataTrigger m3 = (MessageExtraDataTrigger)message.getExtraData();
+                    d.Trigger.GpsSeconds = m3.gpsSeconds;
+                    d.Trigger.GpsWeek = m3.gpsWeek;
+                    d.Trigger.PictureName = m3.pictureName;
+                    d.Trigger.TriggerGNSSTime = m3.triggerGNSSTime;
+                    d.Trigger.TriggerGraphical = true;
+                    d.Trigger.TriggerIOTime = m3.triggerIOTime;
+                    d.Trigger.TriggerSHUTOutTime = m3.triggerSHUTOutTime;
+                    break;
+                case HMIMessageBase.SUBTYPE.STA_RECORDING_ON:
+                    MessageExtraDataString m5 = (MessageExtraDataString)message.getExtraData();
+                    d.Rec.IsRecording = true;
+                    d.Rec.RecName = m5.String;
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => MapC.UpdateFromDrobit(d)));
+                    break;
+                case HMIMessageBase.SUBTYPE.STA_RECORDING_OFF:
+                    MessageExtraDataString m6 = (MessageExtraDataString)message.getExtraData();
+                    d.Rec.IsRecording = false;
+                    d.Rec.RecName = "";
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => MapC.UpdateFromDrobit(d)));
+                    break;
+                case HMIMessageBase.SUBTYPE.RES_MAG_CALIB_STARTED:
+                    MessageExtraDataString m12 = (MessageExtraDataString)message.getExtraData();
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => ConfControl.SetMagCalibrationData(null, int.Parse(m12.String))));
+                    break;
+                case HMIMessageBase.SUBTYPE.RES_MAG_CALIB_RESULT:
+                    MessageExtraDataKeyValueMap m7 = (MessageExtraDataKeyValueMap)message.getExtraData();
+                    //if (m7 == null)
+                    //{
+                    //    if (Application.Current != null)
+                    //        Application.Current.Dispatcher.Invoke(new Action(() => ConfControl.SetMagCalibrationData(null)));
+                    //}
+                    //else
+                    //{
+
+                    int IMU_ID = int.Parse(m7.map["IMU_ID"]);
+
+                    float[] ellipsoid = new float[12];
+
+                    for (int i = 0; i<3; i++)
+                        for (int u =0; u<3; u++)
+                        {
+                            ellipsoid[(i%3)*3+u] = float.Parse(m7.map["F_MAG_ELLIP_M" + (i+1) + (u+1)], System.Globalization.CultureInfo.InvariantCulture);
+                        }
+
+                    ellipsoid[9] = float.Parse(m7.map["F_MAG_BIAS_X"], System.Globalization.CultureInfo.InvariantCulture);
+                    ellipsoid[10] = float.Parse(m7.map["F_MAG_BIAS_Y"], System.Globalization.CultureInfo.InvariantCulture);
+                    ellipsoid[11] = float.Parse(m7.map["F_MAG_BIAS_Z"], System.Globalization.CultureInfo.InvariantCulture);
+
+                    if (ellipsoid != null)
+                    {
+                        if (Application.Current != null)
+                            Application.Current.Dispatcher.Invoke(new Action(() => ConfControl.SetMagCalibrationData(ellipsoid, IMU_ID)));
+                    }
+                    //}
+                    break;
+                case HMIMessageBase.SUBTYPE.STA_PARAM_VALUE:
+                    MessageExtraDataKeyValueMap m8 = (MessageExtraDataKeyValueMap)message.getExtraData();
+                    //string drobitID = message.SRC_ID;
+                    //DrobitEq dEq = null;
+                    //DrobitEqList.TryGetValue(drobitID, out dEq);
+
+                    //if (dEq != null)
+                    //{
+                        foreach (string key in m8.map.Keys)
+                        {
+                            if (Application.Current != null)
+                                Application.Current.Dispatcher.Invoke(new Action(() => d.ConfigurationState.put(key,m8.map[key])));
+                        }
+
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => ConfControl.ClearForResetParams()));
+                    //}
+                    break;
+                case HMIMessageBase.SUBTYPE.STA_MAGCAL_STATUS:
+                    MessageExtraDataKeyValueMap m9 = (MessageExtraDataKeyValueMap)message.getExtraData();
+                    switch (m9.map["IMU_ID"])
+                    {
+                        case "0":
+                            d.AttitudeBODY.StatusMagCal = m9.map["STATUS"];
+                            break;
+                        case "1":
+                            d.AttitudeHOTSHOE.StatusMagCal = m9.map["STATUS"];
+                            break;
+                    }
+                    break;
+                case HMIMessageBase.SUBTYPE.RES_ACCGYR_CALIB_STARTED:
+                    MessageExtraDataString m13 = (MessageExtraDataString)message.getExtraData();
+                    int IMU_ID1 = int.Parse(m13.String);
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => ConfControl.SetAccGyrCalibrationData(null, IMU_ID1)));
+                    break;
+                case HMIMessageBase.SUBTYPE.RES_ACCGYR_CALIB_RESULT:
+                    MessageExtraDataKeyValueMap m10 = (MessageExtraDataKeyValueMap)message.getExtraData();
+                    //if (m10 == null)
+                    //{
+                    //    if (Application.Current != null)
+                    //        Application.Current.Dispatcher.Invoke(new Action(() => ConfControl.SetAccGyrCalibrationData(null)));
+                    //}
+                    //else
+                    //{
+                    int IMU_ID3 = int.Parse(m10.map["IMU_ID"]);
+
+                    float[] biases = new float[6];
+
+                    biases[0] = float.Parse(m10.map["F_ACC_BIAS_X"], System.Globalization.CultureInfo.InvariantCulture);
+                    biases[1] = float.Parse(m10.map["F_ACC_BIAS_Y"], System.Globalization.CultureInfo.InvariantCulture);
+                    biases[2] = float.Parse(m10.map["F_ACC_BIAS_Z"], System.Globalization.CultureInfo.InvariantCulture);
+
+                    biases[3] = float.Parse(m10.map["F_GYRO_BIAS_X"], System.Globalization.CultureInfo.InvariantCulture);
+                    biases[4] = float.Parse(m10.map["F_GYRO_BIAS_Y"], System.Globalization.CultureInfo.InvariantCulture);
+                    biases[5] = float.Parse(m10.map["F_GYRO_BIAS_Z"], System.Globalization.CultureInfo.InvariantCulture);
+
+                    if (biases != null)
+                    {
+                        if (Application.Current != null)
+                            Application.Current.Dispatcher.Invoke(new Action(() => ConfControl.SetAccGyrCalibrationData(biases,IMU_ID3)));
+                    }
+                    //}
+                    break;
+                case HMIMessageBase.SUBTYPE.STA_REMOTEPROJECT_SUMMARY:
+                    MessageExtraDataRemoteProject m11 = (MessageExtraDataRemoteProject)message.getExtraData();
+                    if (m11 == null)
+                        return;
+
+                    Recording rP = new Recording();
+                    rP.Name = m11.Name;
+                    rP.Duration = new TimeSpan(0,0,(int)m11.DurationSecs);
+                    rP.Date = DrobitTools.fromMillis(m11.UnixTime);
+                    rP.CamTriggers = m11.CamTriggerNumber;
+                    rP.IP = d.Ip;
+                    rP.RemoteContainerPath = m11.ContainerRemotePath;
+                    rP.DrobitSerial = d.Serial;
+                    rP.DrobitName = d.Name;
+                    // Check for duplicates
+
+                    if (Application.Current != null)
+                        Application.Current.Dispatcher.Invoke(new Action(() => AddProject(d, rP)));
+                    
+                    break;
+
+            }
+            // Log to window
+            ReportLog(message);
+            UpdateGlobalRecordingStatus();
+        }
+
+        private void AddProject(DrobitEq d, Recording rP)
+        {
+            for (int i = d.RemoteRecordingList.Count-1; i>=0; i--)
+            {
+                Recording p = d.RemoteRecordingList[i];
+                if (p.Name.Equals(rP.Name))
+                    d.RemoteRecordingList.RemoveAt(i);
+            }
+
+            d.RemoteRecordingList.Add(rP);
+        }
+
+        private void RequestDrobitParameterValues(string id)
+        {
+            HMIMessageBase m = HMIMessageBaseFactory.createMessage();
+            m.Type = HMIMessageBase.TYPE.CMD;
+            m.Subtype = HMIMessageBase.SUBTYPE.CMD_GET_PARAM_BY_NAME;
+            m.DST_ID = id;
+            MessageExtraDataStringList extraData = new MessageExtraDataStringList();
+
+            foreach (string paramName in Configuration.ParametersNames.PNames)
+            {
+                extraData.Items.Add(paramName);
+
+                
+            }
+
+            m.setExtraDataObject(extraData);
+
+            tcpCommunicator.send(id, m.serialize());
+        }
+
+        public void UpdateGlobalRecordingStatus()
+        {
+            bool recording = false;
+
+            if (DrobitEqList == null)
+                return;
+
+            foreach (DrobitEq e in DrobitEqList.Values)
+                recording |= e.Rec.IsRecording;
+
+            IsAnyBodyRecording = recording;
+        }
+
+        private void ReportLog(HMIMessageBase message)
+        {
+            LogEntry entry = null;
+
+            switch (message.Type)
+            {
+                case HMIMessageBase.TYPE.CMD:
+                    break;
+                case HMIMessageBase.TYPE.STA:
+                    switch (message.Subtype)
+                    {
+                        case HMIMessageBase.SUBTYPE.STA_RECORDING_ON:
+                            MessageExtraDataString m1 = (MessageExtraDataString)message.getExtraData();
+                            entry = new ActionLogEntry();
+                            ((ActionLogEntry)entry).ActionCODE = "START REC";
+                            ((ActionLogEntry)entry).EqID = message.SRC_ID;
+                            ((ActionLogEntry)entry).Name = message.Name;
+                            ((ActionLogEntry)entry).Message = m1.String;
+                            break;
+                        case HMIMessageBase.SUBTYPE.STA_RECORDING_OFF:
+                            MessageExtraDataString m2 = (MessageExtraDataString)message.getExtraData();
+                            entry = new ActionLogEntry();
+                            ((ActionLogEntry)entry).ActionCODE = "STOP REC";
+                            ((ActionLogEntry)entry).EqID = message.SRC_ID;
+                            ((ActionLogEntry)entry).Name = message.Name;
+                            ((ActionLogEntry)entry).Message = m2.String;
+                            break;
+                        case HMIMessageBase.SUBTYPE.STA_STATUS_SHORT:
+                            MessageExtraDataStatusShort m3 = (MessageExtraDataStatusShort)message.getExtraData();
+                            entry = new ActionLogEntry();
+                            ((ActionLogEntry)entry).ActionCODE = "STATUS";
+                            ((ActionLogEntry)entry).EqID = message.SRC_ID;
+                            ((ActionLogEntry)entry).Name = message.Name;
+                            ((ActionLogEntry)entry).Message = m3.Lat + " " + m3.Lon + " " + m3.Alt + " " + m3.nSV;
+                            break;
+                        case HMIMessageBase.SUBTYPE.STA_TRIGGER_EVENT:
+                            MessageExtraDataTrigger m4 = (MessageExtraDataTrigger)message.getExtraData();
+                            entry = new ActionLogEntry();
+                            ((ActionLogEntry)entry).ActionCODE = "TRIGGER";
+                            ((ActionLogEntry)entry).EqID = message.SRC_ID;
+                            ((ActionLogEntry)entry).Name = message.Name;
+                            ((ActionLogEntry)entry).Message = m4.gpsWeek + " " + m4.gpsSeconds + " " + m4.pictureName;
+                            break;
+                        case HMIMessageBase.SUBTYPE.STA_READY:
+                            entry = new ActionLogEntry();
+                            ((ActionLogEntry)entry).ActionCODE = "READY";
+                            ((ActionLogEntry)entry).EqID = message.SRC_ID;
+                            ((ActionLogEntry)entry).Name = message.Name;
+                            ((ActionLogEntry)entry).Message = "";
+                            break;
+                        case HMIMessageBase.SUBTYPE.STA_NOT_READY:
+                            entry = new ActionLogEntry();
+                            ((ActionLogEntry)entry).ActionCODE = "NOT READY";
+                            ((ActionLogEntry)entry).EqID = message.SRC_ID;
+                            ((ActionLogEntry)entry).Name = message.Name;
+                            ((ActionLogEntry)entry).Message = "";
+                            break;
+                    }
+                    break;
+
+            }
+
+            if (entry != null)
+            {
+                if (Application.Current != null)
+                    Application.Current.Dispatcher.Invoke(new Action(() => LogEntries.Add(entry)));
+               
+            }
+                
+        }
+
+        private void ActivateBoardAction(object parameter)
+        {
+            // Rec button pressed in attached DrobitEq
+            KeyValuePair<string, DrobitEq> duple = (KeyValuePair<string, DrobitEq>)parameter;
+            DrobitEq selectedEQ = duple.Value;
+
+            HMIMessageBase message = HMIMessageBaseFactory.createMessage();
+            message.DST_ID = selectedEQ.Serial;
+            message.Type = HMIMessageBase.TYPE.CMD;
+            message.Subtype = HMIMessageBase.SUBTYPE.CMD_GNSS_POWER;
+            MessageExtraDataString extraData = new MessageExtraDataString();
+            extraData.String = (!selectedEQ.Power.BoardActive).ToString();
+            message.setExtraDataObject(extraData);
+
+            tcpCommunicator.send(selectedEQ.Serial, message.serialize());
+        }
+
+        public void ButtonRECAction(object parameter)
+        {
+            // Rec button pressed in attached DrobitEq
+            KeyValuePair<string, DrobitEq> duple = (KeyValuePair<string, DrobitEq>)parameter;
+            DrobitEq selectedEQ = duple.Value;
+
+            string recName = selectedEQ.Rec.RecName;
+
+            if (IsRecLinked)
+            {
+                foreach (DrobitEq eq in DrobitEqList.Values)
+                {
+                    HMIMessageBase message = HMIMessageBaseFactory.createMessage();
+                    message.DST_ID = eq.Serial;
+                    message.Type = HMIMessageBase.TYPE.CMD;
+                    if (!eq.Rec.IsRecording)
+                    {
+                        message.Subtype = HMIMessageBase.SUBTYPE.CMD_START_RECORDING;
+                        MessageExtraDataString extraData = new MessageExtraDataString();
+                        extraData.String = recName;
+                        message.setExtraDataObject(extraData);
+                    }
+                    else
+                        message.Subtype = HMIMessageBase.SUBTYPE.CMD_STOP_RECORDING;
+
+                    tcpCommunicator.send(eq.Serial,message.serialize());
+                }
+            }
+            else
+            {
+                HMIMessageBase message = HMIMessageBaseFactory.createMessage();
+                message.DST_ID = selectedEQ.Serial;
+                message.Type = HMIMessageBase.TYPE.CMD;
+                if (!selectedEQ.Rec.IsRecording)
+                {
+                    message.Subtype = HMIMessageBase.SUBTYPE.CMD_START_RECORDING;
+                    MessageExtraDataString extraData = new MessageExtraDataString();
+                    extraData.String = recName;
+                    message.setExtraDataObject(extraData);
+                }
+                else
+                    message.Subtype = HMIMessageBase.SUBTYPE.CMD_STOP_RECORDING;
+
+                tcpCommunicator.send(selectedEQ.Serial, message.serialize());
+            }
+
+        }
+
+        public void StartMagCalibActionB(object parameter)
+        {
+            StartMagCalibAction(parameter, 0);
+        }
+
+        public void StartMagCalibActionH(object parameter)
+        {
+            StartMagCalibAction(parameter, 1);
+        }
+
+        public void StopMagCalibActionB(object parameter)
+        {
+            StopMagCalibAction(parameter, 0);
+        }
+        public void StopMagCalibActionH(object parameter)
+        {
+            StopMagCalibAction(parameter, 1);
+        }
+
+
+
+        public void StartMagCalibAction(object parameter, int IMU)
+        {
+            // Rec button pressed in attached DrobitEq
+            //KeyValuePair<string, DrobitEq> duple = (KeyValuePair<string, DrobitEq>)parameter;
+            DrobitEq selectedEQ = (DrobitEq)parameter;
+
+            // Commands and send
+            HMIMessageBase message = HMIMessageBaseFactory.createMessage();
+            message.DST_ID = selectedEQ.Serial;
+            message.Type = HMIMessageBase.TYPE.CMD;
+            message.Subtype = HMIMessageBase.SUBTYPE.CMD_START_MAG_CALIBRATION;
+
+            // IMU
+            MessageExtraDataString extraData = new MessageExtraDataString();
+            extraData.String = IMU.ToString();
+            message.setExtraDataObject(extraData);
+
+            tcpCommunicator.send(selectedEQ.Serial,message.serialize());
+
+        }
+
+        public void StopMagCalibAction(object parameter, int IMU)
+        {
+            // Rec button pressed in attached DrobitEq
+            //KeyValuePair<string, DrobitEq> duple = (KeyValuePair<string, DrobitEq>)parameter;
+            DrobitEq selectedEQ = (DrobitEq)parameter;
+
+            // Commands and send
+            HMIMessageBase message = HMIMessageBaseFactory.createMessage();
+            message.DST_ID = selectedEQ.Serial;
+            message.Type = HMIMessageBase.TYPE.CMD;
+            message.Subtype = HMIMessageBase.SUBTYPE.CMD_STOP_MAG_CALIBRATION;
+
+            // IMU
+            MessageExtraDataString extraData = new MessageExtraDataString();
+            extraData.String = IMU.ToString();
+            message.setExtraDataObject(extraData);
+
+            tcpCommunicator.send(selectedEQ.Serial,message.serialize());
+
+        }
+
+
+
+        public void ReloadConfigAction(object parameter)
+        {
+            if (parameter == null)
+                return;
+
+            DrobitEq selectedEQ = (DrobitEq)parameter;
+            RequestDrobitParameterValues(selectedEQ.Serial);
+        }
+
+        public void StartAccActionB(object parameter)
+        {
+            StartAccAction(parameter, 0);
+        }
+
+        public void StartAccActionH(object parameter)
+        {
+            StartAccAction(parameter, 1);
+        }
+
+        public void StartAccAction(object parameter, int IMU)
+        {
+            if (parameter == null)
+                return;
+
+            DrobitEq selectedEQ = (DrobitEq)parameter;
+            HMIMessageBase message = HMIMessageBaseFactory.createMessage();
+            message.DST_ID = selectedEQ.Serial;
+            message.Type = HMIMessageBase.TYPE.CMD;
+            message.Subtype = HMIMessageBase.SUBTYPE.CMD_START_ACCELGYRO_CALIBRATION;
+
+            // IMU
+            MessageExtraDataString extraData = new MessageExtraDataString();
+            extraData.String = IMU.ToString();
+            message.setExtraDataObject(extraData);
+
+            tcpCommunicator.send(selectedEQ.Serial,message.serialize());
+        }
+
+        //public void SaveMagCalibAction(object parameter)
+        //{
+        //    // Rec button pressed in attached DrobitEq
+        //    //KeyValuePair<string, DrobitEq> duple = (KeyValuePair<string, DrobitEq>)parameter;
+        //    DrobitEq selectedEQ = (DrobitEq)parameter;
+
+        //    // Commands and send
+        //    HMIMessageBase message = HMIMessageBaseFactory.createMessage();
+        //    message.DST_ID = selectedEQ.Serial;
+        //    message.Type = HMIMessageBase.TYPE.CMD;
+        //    message.Subtype = HMIMessageBase.SUBTYPE.CMD_SAVE_MAG_CALIBRATION;
+
+        //    Dictionary<string, string> param = new Dictionary<string, string>();
+        //    param.Add("M11", ConfControl.M11.Text);
+        //    param.Add("M12", ConfControl.M12.Text);
+        //    param.Add("M13", ConfControl.M13.Text);
+        //    param.Add("M21", ConfControl.M21.Text);
+        //    param.Add("M22", ConfControl.M22.Text);
+        //    param.Add("M23", ConfControl.M23.Text);
+        //    param.Add("M31", ConfControl.M31.Text);
+        //    param.Add("M32", ConfControl.M32.Text);
+        //    param.Add("M33", ConfControl.M33.Text);
+
+        //    param.Add("C1", ConfControl.C1.Text);
+        //    param.Add("C2", ConfControl.C2.Text);
+        //    param.Add("C3", ConfControl.C3.Text);
+
+        //    MessageExtraDataKeyValueMap extraData = new MessageExtraDataKeyValueMap();
+        //    extraData.map = param;
+
+        //    message.setExtraDataObject(extraData);
+
+        //    tcpCommunicator.send(selectedEQ.Serial,message.serialize());
+
+        //}
+
+        public void SaveConfigAction(object parameter)
+        {
+            DrobitEq selectedEQ = (DrobitEq)parameter;
+
+            // Commands and send
+            HMIMessageBase message = HMIMessageBaseFactory.createMessage();
+            message.DST_ID = selectedEQ.Serial;
+            message.Type = HMIMessageBase.TYPE.CMD;
+            message.Subtype = HMIMessageBase.SUBTYPE.CMD_SET_PARAM_BY_NAME;
+
+            Dictionary<string, string> param = new Dictionary<string, string>();
+
+            if (ConfControl.TB_Name.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.S_NAME, ConfControl.TB_Name.Text);
+            if (ConfControl.C_Role.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.S_ROLE, ConfControl.C_Role.SelectedValue.ToString());
+
+            if (ConfControl.CB_RecBoot.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.B_RECONBOOT, ConfControl.CB_RecBoot.IsChecked.ToString());
+            if (ConfControl.C_TriggerINType.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.S_INPUT_TRIGGERTYPE, ConfControl.C_TriggerINType.SelectedValue.ToString());
+            if (ConfControl.C_RecPath.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.S_REC_PATH, ConfControl.C_RecPath.SelectedValue.ToString());
+
+            if (ConfControl.TB_CamXOffB.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_CAM_OFFSET_XB, ConfControl.TB_CamXOffB.Text);
+            if (ConfControl.TB_CamYOffB.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_CAM_OFFSET_YB, ConfControl.TB_CamYOffB.Text);
+            if (ConfControl.TB_CamZOffB.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_CAM_OFFSET_ZB, ConfControl.TB_CamZOffB.Text);
+
+            if (ConfControl.TB_CamXOffH.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_CAM_OFFSET_XH, ConfControl.TB_CamXOffH.Text);
+            if (ConfControl.TB_CamYOffH.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_CAM_OFFSET_YH, ConfControl.TB_CamYOffH.Text);
+            if (ConfControl.TB_CamZOffH.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_CAM_OFFSET_ZH, ConfControl.TB_CamZOffH.Text);
+
+            if (ConfControl.M11B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M11B, ConfControl.M11B.Text);
+            if (ConfControl.M12B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M12B, ConfControl.M12B.Text);
+            if (ConfControl.M13B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M13B, ConfControl.M13B.Text);
+            if (ConfControl.M21B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M21B, ConfControl.M21B.Text);
+            if (ConfControl.M22B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M22B, ConfControl.M22B.Text);
+            if (ConfControl.M23B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M23B, ConfControl.M23B.Text);
+            if (ConfControl.M31B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M31B, ConfControl.M31B.Text);
+            if (ConfControl.M32B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M32B, ConfControl.M32B.Text);
+            if (ConfControl.M33B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M33B, ConfControl.M33B.Text);
+
+            if (ConfControl.C1B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_BIAS_XB, ConfControl.C1B.Text);
+            if (ConfControl.C2B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_BIAS_YB, ConfControl.C2B.Text);
+            if (ConfControl.C3B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_BIAS_ZB, ConfControl.C3B.Text);
+
+            if (ConfControl.TB_A1B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_ACC_BIAS_XB, ConfControl.TB_A1B.Text);
+            if (ConfControl.TB_A2B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_ACC_BIAS_YB, ConfControl.TB_A2B.Text);
+            if (ConfControl.TB_A3B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_ACC_BIAS_ZB, ConfControl.TB_A3B.Text);
+
+            if (ConfControl.TB_G1B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_GYRO_BIAS_XB, ConfControl.TB_G1B.Text);
+            if (ConfControl.TB_G2B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_GYRO_BIAS_YB, ConfControl.TB_G2B.Text);
+            if (ConfControl.TB_G3B.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_GYRO_BIAS_ZB, ConfControl.TB_G3B.Text);
+
+            if (ConfControl.M11H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M11H, ConfControl.M11H.Text);
+            if (ConfControl.M12H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M12H, ConfControl.M12H.Text);
+            if (ConfControl.M13H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M13H, ConfControl.M13H.Text);
+            if (ConfControl.M21H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M21H, ConfControl.M21H.Text);
+            if (ConfControl.M22H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M22H, ConfControl.M22H.Text);
+            if (ConfControl.M23H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M23H, ConfControl.M23H.Text);
+            if (ConfControl.M31H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M31H, ConfControl.M31H.Text);
+            if (ConfControl.M32H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M32H, ConfControl.M32H.Text);
+            if (ConfControl.M33H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_ELLIP_M33H, ConfControl.M33H.Text);
+
+            if (ConfControl.C1H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_BIAS_XH, ConfControl.C1H.Text);
+            if (ConfControl.C2H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_BIAS_YH, ConfControl.C2H.Text);
+            if (ConfControl.C3H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_MAG_BIAS_ZH, ConfControl.C3H.Text);
+
+            if (ConfControl.TB_A1H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_ACC_BIAS_XH, ConfControl.TB_A1H.Text);
+            if (ConfControl.TB_A2H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_ACC_BIAS_YH, ConfControl.TB_A2H.Text);
+            if (ConfControl.TB_A3H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_ACC_BIAS_ZH, ConfControl.TB_A3H.Text);
+
+            if (ConfControl.TB_G1H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_GYRO_BIAS_XH, ConfControl.TB_G1H.Text);
+            if (ConfControl.TB_G2H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_GYRO_BIAS_YH, ConfControl.TB_G2H.Text);
+            if (ConfControl.TB_G3H.Tag.ToString().Equals("1")) param.Add(Configuration.ParametersNames.F_GYRO_BIAS_ZH, ConfControl.TB_G3H.Text);
+
+
+            MessageExtraDataKeyValueMap extraData = new MessageExtraDataKeyValueMap();
+            extraData.map = param;
+
+            message.setExtraDataObject(extraData);
+
+            tcpCommunicator.send(selectedEQ.Serial,message.serialize());
+
+        }
+
+        public void setMap(GMAPUC map)
+        {
+            this.MapC = map;
+        }
+
+        public void setConfigControl(ConfigControl control)
+        {
+            this.ConfControl = control;
+        }
+
+    }
+
+}

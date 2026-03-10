@@ -1,0 +1,135 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading.Tasks;
+using ControlCenter.Base;
+using DrobitExtras;
+using System.Collections.ObjectModel;
+
+namespace ControlCenter.Models
+{
+    public class DrobitEq : BindableModelBase
+    {
+        // ******************************* properties *******************************
+        private string fwVersion;
+        public string FWVersion
+        {
+            get { return fwVersion; }
+            set { Set(ref fwVersion, value); }
+        }
+
+        private string ip;
+        public string Ip
+        {
+            get { return ip; }
+            set { Set(ref ip, value); }
+        }
+
+        private string name;
+        public string Name
+        {
+            get { return name; }
+            set { Set(ref name, value); }
+        }
+
+
+        private string serial;
+        public string Serial
+        {
+            get { return serial; }
+            set { Set(ref serial, value); }
+        }
+
+        private long localDrobitTime;
+        public long LocalDrobitTime
+        {
+            get { return localDrobitTime; }
+            set { Set(ref localDrobitTime, value); }
+        }
+
+        private AttitudeStatus attitudeBODY;
+        public AttitudeStatus AttitudeBODY
+        {
+            get { return attitudeBODY; }
+            set { Set(ref attitudeBODY, value); }
+        }
+
+        private AttitudeStatus attitudeHOTSHOE;
+        public AttitudeStatus AttitudeHOTSHOE
+        {
+            get { return attitudeHOTSHOE; }
+            set { Set(ref attitudeHOTSHOE, value); }
+        }
+
+        private RecStatus recStatus;
+        public RecStatus Rec
+        {
+            get { return recStatus; }
+            set { Set(ref recStatus, value); }
+        }
+
+        private HealthStatus healthStatus;
+        public HealthStatus Health
+        {
+            get { return healthStatus; }
+            set { Set(ref healthStatus, value); }
+        }
+
+        private TriggerStatus triggerStatus;
+        public TriggerStatus Trigger
+        {
+            get { return triggerStatus; }
+            set { Set(ref triggerStatus, value); }
+        }
+
+        private StorageStatus storageStatus;
+        public StorageStatus Storage
+        {
+            get { return storageStatus; }
+            set { Set(ref storageStatus, value); }
+        }
+
+        private GNSSStatus gnssStatus;
+        public GNSSStatus GNSS
+        {
+            get { return gnssStatus; }
+            set { Set(ref gnssStatus, value); }
+        }
+
+        private Configuration configuration;
+        public Configuration ConfigurationState
+        {
+            get { return configuration; }
+            set { Set(ref configuration, value); }
+        }
+
+        private PowerStatus power;
+        public PowerStatus Power
+        {
+            get { return power; }
+            set { Set(ref power, value); }
+        }
+
+        public ObservableCollection<Recording> RemoteRecordingList { get; set; } = new ObservableCollection<Recording>();
+        // **************************************************************************
+
+        public DrobitEq()
+        {
+            attitudeBODY = new AttitudeStatus();
+            attitudeHOTSHOE = new AttitudeStatus();
+            recStatus = new RecStatus();
+            healthStatus = new HealthStatus();
+            triggerStatus = new TriggerStatus();
+            gnssStatus = new GNSSStatus();
+            storageStatus = new StorageStatus();
+            configuration = new Configuration();
+            power = new PowerStatus();
+        }
+
+        
+        
+    }
+}

@@ -1,0 +1,530 @@
+﻿using ControlCenter.Extras;
+using ControlCenter.GNSSProcessingEngine;
+using ControlCenter.Models.JOBS;
+using ControlCenter.Models.JOBS.Parameters;
+using ControlCenter.Models.JOBS.Parameters.GNSS;
+using ControlCenter.UserControls.Dialogs;
+using MaterialDesignThemes.Wpf;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using static ControlCenter.GNSSProcessingEngine.RINEXConverter;
+
+namespace ControlCenter.UserControls.PostProcessingControls
+{
+    /// <summary>
+    /// Interaction logic for GNSSInputFileControl.xaml
+    /// </summary>
+    public partial class DrobitInputFileControl : UserControl
+    {
+        private const string NONCONVERTED = "PROVIDED";
+        private const string CONVERTED = "RINEX2x";
+
+        private WaitingDialogData WaitDialogData;
+
+        //private const string GNSS_FILE_REGEX = @"\.gnss|\.GNSS";
+        //private const string CAM_FILE_REGEX = @"\.cam|\.CAM";
+        //private const string RTKPOS_FILE_REGEX = @"\.pos|\.POS";
+
+        private const int timeOut = 1500;
+
+        public delegate void NewParamHandler(JobParameter rinex);
+        public event NewParamHandler NewParamEvent;
+
+
+        DialogSession session;
+
+        public DrobitInputFileControl()
+        {
+            InitializeComponent();
+        }
+
+       
+        /// <summary>Dependency property to Get/Set the current IsActive (True/False)</summary>
+        //public static readonly DependencyProperty FileTypeProperty =
+        //    DependencyProperty.Register("FileType", typeof(string), typeof(GNSSInputFileControl),
+        //        new PropertyMetadata(null, new PropertyChangedCallback(GNSSInputFileControl.FileTypePropertyChanged)));
+
+        /// <summary>Dependency property to Get/Set the current IsActive (True/False)</summary>
+        public static readonly DependencyProperty DialogIdentifierProperty =
+            DependencyProperty.Register("DialogIdentifier", typeof(string), typeof(DrobitInputFileControl),
+                new PropertyMetadata(null, new PropertyChangedCallback(DrobitInputFileControl.DialogIdentifierPropertyChanged)));
+
+        /// <summary>Dependency property to Get/Set the current IsActive (True/False)</summary>
+        public static readonly DependencyProperty FileDestinationRootFolderProperty =
+            DependencyProperty.Register("FileDestinationRootFolder", typeof(string), typeof(DrobitInputFileControl),
+                new PropertyMetadata(null, new PropertyChangedCallback(DrobitInputFileControl.FileDestinationRootFolderPropertyChanged)));
+
+       
+
+        //public string FileType
+        //{
+        //    get { return (string)GetValue(FileTypeProperty); }
+        //    set
+        //    {
+        //        SetValue(FileTypeProperty, value);
+        //    }
+        //}
+
+        public string DialogIdentifier
+        {
+            get { return (string)GetValue(DialogIdentifierProperty); }
+            set
+            {
+                SetValue(DialogIdentifierProperty, value);
+            }
+        }
+
+        public string FileDestinationRootFolder
+        {
+            get { return (string)GetValue(FileDestinationRootFolderProperty); }
+            set
+            {
+                SetValue(FileDestinationRootFolderProperty, value);
+            }
+        }
+
+        //private static void FileTypePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        //{
+        //    //GNSSInputFileControl t = (GNSSInputFileControl)d;
+        //    //t.BA_DropButtom.Badge = (string)e.NewValue;
+        //    //t.localRINEXUnit.Type = (string)e.NewValue;
+        //}
+
+        private static void DialogIdentifierPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            DrobitInputFileControl t = (DrobitInputFileControl)d;
+            t.DialogIdentifier = (string)e.NewValue;
+        }
+
+        private static void FileDestinationRootFolderPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            DrobitInputFileControl t = (DrobitInputFileControl)d;
+            t.FileDestinationRootFolder = (string)e.NewValue;
+        }
+
+        protected virtual void OnNewParam(JobParameter param)
+        {
+            if (NewParamEvent != null)
+            {
+                if (Application.Current != null)
+                    Application.Current.Dispatcher.BeginInvoke(new Action(() => NewParamEvent(param)));
+            }
+        }
+
+        private void OpenedDialogCallback(object sender, DialogOpenedEventArgs args)
+        {
+            session = args.Session;
+        }
+
+        private async void OpenDialog()
+        {
+            WaitDialogData = new WaitingDialogData();
+            var view = new WaitingDialog();
+            view.DataContext = WaitDialogData;
+            var result = await DialogHost.Show(view, DialogIdentifier, new DialogOpenedEventHandler(OpenedDialogCallback), null);
+        }
+
+        private void Button_Drop(object sender, DragEventArgs e)
+        {
+            Button b = (Button)sender;
+            b.Effect = null;
+
+            // Get datacontext type
+            JobParameterType type = (DataContext as JobParameter).JobParamType;
+
+            // Start Waiting UI Dialog
+            OpenDialog();
+            WaitDialogData.Message = "Starting...";
+            
+
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+
+                switch (type)
+                {
+                    case JobParameterType.RINEXUNIT:
+                        RINEXUnit unit = (RINEXUnit)DataContext;
+                        // Clear RINEX Item
+                        unit.reset();
+                        // Params for Task
+                        ThreadPool.QueueUserWorkItem(new WaitCallback(DoGNSSFileInputProcessing), new object[] { DataContext, files, FileDestinationRootFolder, unit.Type });
+                        break;
+                    case JobParameterType.DROBITCAMUNIT:
+                        if (files.Length == 1)
+                        {
+                            ((CAMUnit)DataContext).reset();
+                            ThreadPool.QueueUserWorkItem(new WaitCallback(DoSimpleFileInputProcessing), new object[] { DataContext, files, FileDestinationRootFolder, type });
+                        }
+                            
+                        break;
+                    case JobParameterType.RTKPOSUNIT:
+                        if (files.Length == 1)
+                        {
+                            ((RTKPOSUnit)DataContext).reset();
+                            ThreadPool.QueueUserWorkItem(new WaitCallback(DoSimpleFileInputProcessing), new object[] { DataContext, files, FileDestinationRootFolder, type });
+                        }
+                        break;
+
+                }
+            }
+            else if (e.Data.GetDataPresent(DataFormats.StringFormat))
+            {
+                string CamPath = (string)e.Data.GetData(DataFormats.StringFormat);
+                if (CamPath != "")
+                {
+                    ((CAMUnit)DataContext).reset();
+                    ThreadPool.QueueUserWorkItem(new WaitCallback(DoSimpleFileInputProcessing), new object[] { DataContext, new string[] { CamPath }, FileDestinationRootFolder, type });
+                }
+            }
+            else
+            {
+                WaitDialogData.Message = "Drop type not supported";
+                Thread.Sleep(timeOut);
+
+                if (Application.Current != null)
+                    Application.Current.Dispatcher.BeginInvoke(new Action(() => session.Close()));
+            }    
+        }
+
+        private void DoSimpleFileInputProcessing(object o)
+        {
+            object[] param = (object[])o;
+            // parameters
+            string[] files = (string[])param[1];
+            // 
+            string destinationRootFolder = (string)param[2];
+            JobParameterType Paramtype = (JobParameterType)param[3];
+
+            // Path to INPUT Folder Root
+            string path = DrobitTools.ConcatenatePath(new string[] { destinationRootFolder, "" });
+            // MESSAGE UPDATE -----------------
+            WaitDialogData.Message = "Copying to Proyect folder...";
+            // Empty FOlder
+            DrobitTools.EmptyDirectory(path);
+            DrobitTools.CreateFolderIfNotExists(path);
+
+            // File name
+            string finalFileUri ="";
+            bool fileOK = false;
+            JobParameter unit = (param[0] as JobParameter);
+
+            switch(Paramtype)
+            {
+                case JobParameterType.DROBITCAMUNIT:
+                    // Copy file
+                    finalFileUri = DrobitTools.CopyFile2Folder(files[0], path);
+                    (unit as CAMUnit).Path = finalFileUri;
+                    WaitDialogData.Message = "Analyzing...";
+                    CAMUnit camUnit = (CAMUnit)unit;
+                    camUnit.Name = System.IO.Path.GetFileNameWithoutExtension(finalFileUri);
+                    // Discriminate between Drobit and DJI file
+                    string ext = System.IO.Path.GetExtension(finalFileUri);
+                    if (Regex.IsMatch(ext, CAMUnit.CAMFILE_DROBIT_REGEX_EXT, RegexOptions.IgnoreCase))
+                    {
+                        fileOK = CAMFileParser.ParseFile(finalFileUri, ref camUnit);
+                        camUnit.IsDJI = false;
+                    }
+                    else if (Regex.IsMatch(ext, CAMUnit.CAMFILE_DJI_REGEX_EXT, RegexOptions.IgnoreCase))
+                    {
+                        fileOK = DJIFileParser.ParseFile(finalFileUri, ref camUnit);
+                        camUnit.IsDJI = true;
+                    }
+                    break;
+                case JobParameterType.RTKPOSUNIT:
+                    // Copy file
+                    finalFileUri = DrobitTools.CopyFile2Folder(files[0], path);
+                    (unit as RTKPOSUnit).Path = finalFileUri;
+                    WaitDialogData.Message = "Analyzing...";
+                    RTKPOSUnit posUnit = (RTKPOSUnit)unit;
+                    posUnit.Name = System.IO.Path.GetFileNameWithoutExtension(finalFileUri);
+                    fileOK = RTKOutputFileParser.ParseFile(finalFileUri, ref posUnit);
+                    break;
+            }
+
+            // Once analyzed, call event
+            OnNewParam(unit);
+
+            if (fileOK)
+            {
+                WaitDialogData.Message = "Done!";
+            }
+            else
+            {
+                WaitDialogData.Message = "Error! Still can try to continue";
+            }
+
+            Thread.Sleep(timeOut);
+
+            if (Application.Current != null)
+                Application.Current.Dispatcher.BeginInvoke(new Action(() => session.Close()));
+        }
+
+        private void DoGNSSFileInputProcessing(object o)
+        {
+            object[] param = (object[])o;
+            // RinexUnit
+            RINEXUnit unit = (RINEXUnit)param[0];
+            // parameters
+            string[] files = (string[])param[1];
+            // 
+            string destinationRootFolder = (string)param[2];
+            string filetype = (string)param[3];
+            // Path to INPUT Folder Root
+            string path = DrobitTools.ConcatenatePath(new string[] { destinationRootFolder, filetype });
+            // MESSAGE UPDATE -----------------
+            WaitDialogData.Message = "Copying to Proyect folder...";
+            // Empty FOlder
+            DrobitTools.EmptyDirectory(path);
+            DrobitTools.CreateFolderIfNotExists(path);
+            // Path to Non-converted Input Files
+            string path_nonconverted = DrobitTools.ConcatenatePath(new string[] { path, NONCONVERTED });
+            DrobitTools.CreateFolderIfNotExists(path_nonconverted);
+            // Path to Converted Input Files
+            string path_converted = DrobitTools.ConcatenatePath(new string[] { path, CONVERTED });
+            DrobitTools.CreateFolderIfNotExists(path_converted);
+            // Dictionary file-filetype
+            Dictionary<string, GNSS_FILE_TYPE> files2convert = new Dictionary<string, GNSS_FILE_TYPE>();
+
+            // Note that you can have more than one file.
+            foreach (string fileUri in files)
+            {
+                if (Regex.IsMatch(fileUri, RINEXUnit.DROBIT_FILE_REGEX))
+                {
+                    // Copy. We will convert afterwards
+                    files2convert.Add(DrobitTools.CopyFile2Folder(fileUri, path_nonconverted), GNSS_FILE_TYPE.DROBIT); 
+                }
+                else if (Regex.IsMatch(fileUri, RINEXUnit.UBLOX_FILE_REGEX))
+                {
+                    // Copy. We will convert afterwards
+                    files2convert.Add(DrobitTools.CopyFile2Folder(fileUri, path_nonconverted), GNSS_FILE_TYPE.UBLOX);
+                }
+                else if (Regex.IsMatch(fileUri, RINEXUnit.TOPCON_FILE_REGEX))
+                {
+                    // Copy. We will convert afterwards
+                    files2convert.Add(DrobitTools.CopyFile2Folder(fileUri, path_nonconverted), GNSS_FILE_TYPE.TOPCON);
+                }
+                else if (Regex.IsMatch(fileUri, RINEXUnit.OBSFILE_REGEX_EXT))
+                {
+                    bool rinex3 = false;
+                    bool compact = false;
+
+                    if (DrobitTools.IsCompactRinex(fileUri))
+                        compact = true;
+                    if (DrobitTools.IsRinexVersion3x(fileUri))
+                        rinex3 = true;
+
+                    if (compact)
+                    {
+                        if (rinex3)
+                            files2convert.Add(DrobitTools.CopyFile2Folder(fileUri, path_nonconverted), GNSS_FILE_TYPE.RINEX3x_COMPACT);
+                        else
+                            files2convert.Add(DrobitTools.CopyFile2Folder(fileUri, path_nonconverted), GNSS_FILE_TYPE.RINEX2x_COMPACT);
+                    }
+                    else
+                    {
+                        if (rinex3)
+                            files2convert.Add(DrobitTools.CopyFile2Folder(fileUri, path_nonconverted), GNSS_FILE_TYPE.RINEX3x);
+                        else
+                            DrobitTools.CopyFile2Folder(fileUri, path_converted);
+                    }
+                }
+                else if (Regex.IsMatch(fileUri, RINEXUnit.NAVFILE_REGEX_EXT))
+                {
+                    if (DrobitTools.IsRinexVersion3x(fileUri))
+                        files2convert.Add(DrobitTools.CopyFile2Folder(fileUri, path_nonconverted), GNSS_FILE_TYPE.RINEX3x);
+                    else
+                        DrobitTools.CopyFile2Folder(fileUri, path_converted);
+                }
+            }
+
+            
+            // Convert those that have to be converted
+            foreach (KeyValuePair<string, GNSS_FILE_TYPE> pair in files2convert)
+            {
+                string fileUri = pair.Key;
+                GNSS_FILE_TYPE type = pair.Value;
+                unit.SourceFileType = type;
+
+                // MESSAGE UPDATE -----------------
+                // Decompact first if needed
+                if (type == GNSS_FILE_TYPE.RINEX2x_COMPACT || type == GNSS_FILE_TYPE.RINEX3x_COMPACT)
+                {
+                    WaitDialogData.Message = "Decompacting RINEX...";
+                    fileUri = RINEXConverter.DeCompact(fileUri);
+
+                    if (type == GNSS_FILE_TYPE.RINEX2x_COMPACT)
+                    {
+                        // Copy to ouput folder
+                        DrobitTools.CopyFile2Folder(fileUri, path_converted);
+                    }
+                }
+
+                // Convert to RINEX 2 if needed
+                if (type == GNSS_FILE_TYPE.RINEX3x || type == GNSS_FILE_TYPE.RINEX3x_COMPACT || type == GNSS_FILE_TYPE.DROBIT || type == GNSS_FILE_TYPE.TOPCON || type == GNSS_FILE_TYPE.UBLOX)
+                {
+                    WaitDialogData.Message = "Converting to RINEX 2...";
+                    RINEXConverter.Convert(fileUri, type, path_converted);
+                }
+            }
+
+            string[] filesRinex = Directory.GetFiles(path_converted);
+            
+            foreach (string file in filesRinex)
+            {
+                if (Regex.IsMatch(file, RINEXUnit.OBSFILE_REGEX_EXT))
+                {
+                    unit.ObsFileUri = file;
+                    unit.Name = System.IO.Path.GetFileNameWithoutExtension(file);
+                }
+                else if (Regex.IsMatch(file, RINEXUnit.NAVFILE_REGEX_EXT))
+                {
+                    unit.NavFileUris.Add(file);
+                }
+                else
+                {
+                    // Rename file so it is not analized by TEQC
+                    string fileName = System.IO.Path.GetFileNameWithoutExtension(file);
+                    string fileExt = System.IO.Path.GetExtension(file);
+                    string fileFolder = System.IO.Path.GetDirectoryName(file);
+
+                    File.Move(file, System.IO.Path.Combine(fileFolder, fileName + "_" + fileExt));
+                }
+            }
+
+            // MESSAGE UPDATE -----------------
+            WaitDialogData.Message = "Analizing RINEX Content...";
+            // Analyze with TEQC
+            CallAnalyzeRINEX(unit);
+
+            // Check Triigers
+            unit.ContainsTrigger = ExtractRinexTrigger(unit, path_converted);
+
+        }
+
+        private bool ExtractRinexTrigger(RINEXUnit unit, string folderPath)
+        {
+            string camFromRinexPath = DrobitTools.ConcatenatePath(new string[] {folderPath, System.IO.Path.GetFileNameWithoutExtension(unit.ObsFileUri)+".cam" }) ;
+            bool bResult = CAMProcessingJob.ProcessRINEXTriggers(unit, camFromRinexPath);
+
+            if (bResult)
+                unit.CAMFromRinexFilePath = camFromRinexPath;
+
+            return bResult;
+        }
+
+        private void CallAnalyzeRINEX(object o)
+        {
+            RINEXUnit unit = (RINEXUnit)o;
+            bool fileOK = TEQCManager.AnalyzeRINEX(ref unit);
+
+            // Once analyzed, call event
+            OnNewParam(unit);
+
+            if (fileOK)
+            { 
+                WaitDialogData.Message = "Done!";
+            }
+            else
+            {
+                WaitDialogData.Message = "Error! Still can try to continue";
+            }
+
+            Thread.Sleep(timeOut);
+
+            if (Application.Current != null)
+                Application.Current.Dispatcher.BeginInvoke(new Action(() => session.Close()));
+            
+        }
+
+        private void Button_MouseEnter(object sender, MouseEventArgs e)
+        {
+            //Button b = (Button)sender;
+            //b.Foreground = Brushes.White;
+            //b.FontWeight = FontWeights.Bold;
+        }
+
+        private void Button_MouseLeave(object sender, MouseEventArgs e)
+        {
+            //Button b = (Button)sender;
+            //b.Foreground = Brushes.Black;
+            //b.FontWeight = FontWeights.Normal;
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            
+        }
+
+        public void SetMinMaxTimeLine(DateTime min, DateTime max)
+        {
+            timeLineControl.SetMinMaxTimeLine(min, max);
+        }
+
+        private void Button_DragEnter(object sender, DragEventArgs e)
+        {
+            Button b = (Button)sender;
+            DropShadowEffect effect = new DropShadowEffect();
+
+            var palette = new PaletteHelper().QueryPalette();
+            var hue = palette.AccentSwatch.AccentHues.ToArray()[palette.AccentHueIndex];
+            effect.Color = hue.Color;
+
+
+            effect.Direction = 0;
+            effect.ShadowDepth = 0;
+            effect.Opacity = 0.5;
+            effect.BlurRadius = 15;
+
+            b.Effect = effect;
+
+            TimeSpan duration = TimeSpan.FromMilliseconds(500);
+            DoubleAnimation animateOpacity = new DoubleAnimation()
+            {
+                From = 0,
+                To = 1,
+                Duration = duration,
+                //AutoReverse = true
+            };
+
+            effect.BeginAnimation(DropShadowEffect.OpacityProperty,
+                                            animateOpacity);
+        }
+
+        private void Button_DragLeave(object sender, DragEventArgs e)
+        {
+            Button b = (Button)sender;
+            b.Effect = null;
+
+            //TimeSpan duration = TimeSpan.FromMilliseconds(500);
+            //DoubleAnimation animateOpacity = new DoubleAnimation()
+            //{
+            //    From = 0,
+            //    To = 1,
+            //    Duration = duration,
+            //    //AutoReverse = true
+            //};
+
+            //baseButtomEffect.BeginAnimation(DropShadowEffect.OpacityProperty,
+            //                                animateOpacity);
+        }
+    }
+}

@@ -1,0 +1,94 @@
+﻿<UserControl x:Class="ControlCenter.UserControls.PostProcessingControls.JobProjectContainer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:ControlCenter.UserControls.PostProcessingControls"
+             xmlns:jobs="clr-namespace:ControlCenter.Models.JOBS"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:conv="clr-namespace:ControlCenter.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.PopupBox.xaml" />
+                <ResourceDictionary Source="..\..\Resources\arrows.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+
+    <materialDesign:Card HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <materialDesign:ColorZone Grid.Row="0" Mode="PrimaryLight">
+                <DockPanel>
+                    <TextBlock TextDecorations="Underline" Text="{Binding Name}" FontWeight="Bold" FontStyle="Normal" DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="16" Margin="20,0,0,0" Foreground="Black"/>
+                    <!--<Button Style="{StaticResource MaterialDesignFloatingActionAccentButton}" Width="40" Height="40"
+                    DockPanel.Dock="Right"
+                    Content="{materialDesign:PackIcon Plus}"
+                    Margin="5"
+                    Command="{Binding AddCommand}"
+                    CommandParameter="{Binding ElementName=DragablzItemsControl}" HorizontalAlignment="Right"/>-->
+                    <materialDesign:PopupBox IsEnabled="{Binding Phase, Converter={conv:WorkPhase2AllowModifications}}" DockPanel.Dock="Right" Style="{StaticResource MaterialDesignMultiFloatingActionPopupBox}" PopupMode="Click" PlacementMode="BottomAndAlignCentres"
+                                 Margin="10" Grid.Row="1" HorizontalAlignment="Right" Width="32" Height="32">
+                        <StackPanel>
+                            <Button ToolTip="GNSS Post Process Static" Command="{Binding AddTaskCommand}" CommandParameter="GNSSSTATIC" >
+                                <!-- mix up the colours by brinking in a named palette (see merged dictionaries at top) -->
+                                <!--<Button.Background>
+                                    <SolidColorBrush Color="{StaticResource GreenPrimary500}" />
+                                </Button.Background>
+                                <Button.Foreground>
+                                    <SolidColorBrush Color="{StaticResource GreenPrimary500Foreground}" />
+                                </Button.Foreground>-->
+                                <materialDesign:PackIcon Kind="Satellite"/>
+                            </Button>
+                            <Button ToolTip="GNSS Post Process Kinematic" Command="{Binding AddTaskCommand}" CommandParameter="GNSSKINEMATIC" Background="{DynamicResource SecondaryAccentBrush}" Foreground="{DynamicResource SecondaryAccentForegroundBrush}">
+                                <materialDesign:PackIcon Kind="SatelliteVariant"/>
+                            </Button>
+                            <Button ToolTip="Camera Processing" Command="{Binding AddTaskCommand}" CommandParameter="CAMERA" Background="{DynamicResource SecondaryAccentBrush}" Foreground="{DynamicResource SecondaryAccentForegroundBrush}">
+                                <materialDesign:PackIcon Kind="Crosshairs"/>
+                            </Button>
+                        </StackPanel>
+                    </materialDesign:PopupBox>
+                </DockPanel>
+            </materialDesign:ColorZone>
+            <ListBox Grid.Row="1" ItemsSource="{Binding IndividualJobs}" HorizontalContentAlignment="Stretch" materialDesign:RippleAssist.IsDisabled="True" Background="{StaticResource Arrow27}">
+                <ListBox.Resources>
+                    <DataTemplate DataType="{x:Type jobs:GNSSPostProcessingJob}">
+                        <local:GNSSPostProcessingControl/>
+                    </DataTemplate>
+                    <DataTemplate DataType="{x:Type jobs:CAMProcessingJob}">
+                        <local:CameraProcessingControl/>
+                    </DataTemplate>
+                </ListBox.Resources>
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="{x:Type ListBoxItem}">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                                    <ContentPresenter/>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <!--<ListBox.ItemTemplate>
+                    <DataTemplate DataType="x:Type processing:GNSSPostProcessingJob">
+                        <local:GNSSPostProcessingControl/>
+                    </DataTemplate>
+
+                </ListBox.ItemTemplate>-->
+            </ListBox>
+        </Grid>
+    </materialDesign:Card>
+</UserControl>

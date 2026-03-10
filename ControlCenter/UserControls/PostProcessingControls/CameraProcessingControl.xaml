@@ -1,0 +1,309 @@
+﻿<UserControl x:Class="ControlCenter.UserControls.PostProcessingControls.CameraProcessingControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:ControlCenter.UserControls.PostProcessingControls"
+             xmlns:System="clr-namespace:System;assembly=mscorlib"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:tools="clr-namespace:DrobitExtras;assembly=DrobitExtras"
+             xmlns:modeljobs="clr-namespace:ControlCenter.Models.JOBS"
+             xmlns:conv="clr-namespace:ControlCenter.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="280" d:DesignWidth="1224"
+             TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+             Background="{DynamicResource MaterialDesignPaper}"
+             TextElement.FontWeight="Medium"
+             TextElement.FontSize="10"
+             FontFamily="pack://application:,,,/MaterialDesignThemes.Wpf;component/Resources/Roboto/#Roboto"
+             >
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Button.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <materialDesign:Card Margin="2,2,2,5">
+        <Border x:Name="B_RootBorder" BorderBrush="#FFC20000" BorderThickness="0,0,0,2">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="CAMERA" FontSize="24" FontWeight="Bold" RenderTransformOrigin="0.5,0.5" Margin="0,0,0,10" >
+                    <Label.LayoutTransform>
+                        <RotateTransform Angle="270"/>
+                    </Label.LayoutTransform>
+                </Label>
+                <Border Grid.Column="1" BorderThickness="1,0,0,0" BorderBrush="Black" Padding="5"/>
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0"  IsEnabled="{Binding Phase, Converter={conv:WorkPhase2AllowModifications}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2.5*"/>
+                            <ColumnDefinition Width="0.8*"/>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="1.2*"/>
+                        </Grid.ColumnDefinitions>
+                        <materialDesign:DialogHost Identifier="{Binding Name}" x:Name="CameraDialogHost">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Margin="5,5,6,5">
+                                    <CheckBox DockPanel.Dock="Left" IsChecked="{Binding NeedInputParameterFromPrevious, Mode=TwoWay}" Content="Use Position from previous Task" Margin="10,10,0,0"/>
+                                    <local:DrobitInputFileControl DataContext="{Binding InputParameter}" x:Name="InputControlPOS" IsEnabled="{Binding ElementName=B_RootBorder, Path=DataContext.NeedInputParameterFromPrevious, Converter={conv:InvertBoolean}}" FileDestinationRootFolder="{Binding ElementName=B_RootBorder, Path=DataContext.InputsFolder}" Grid.Row="0" DialogIdentifier="{Binding ElementName=CameraDialogHost, Path=Identifier}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Border Grid.Row="1" BorderBrush="Black" BorderThickness="0,1,0,0" Margin="5,0"/>
+                                <local:DrobitInputFileControl DataContext="{Binding CamUnit}" x:Name="InputControlCAM"  FileDestinationRootFolder="{Binding ElementName=B_RootBorder, Path=DataContext.InputsFolder}" Grid.Row="1" Margin="5" DialogIdentifier="{Binding ElementName=CameraDialogHost, Path=Identifier}" VerticalAlignment="Center"/>
+                            </Grid>
+                        </materialDesign:DialogHost>
+                        <Border Grid.Column="0" BorderThickness="0,0,1,0" BorderBrush="#FF292929" Margin="0,10"/>
+                        <Border Grid.Column="2" BorderThickness="1,0,0,0" BorderBrush="#FF292929" Margin="0,10"/>
+                        <Grid Grid.Column="1" Margin="5">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <Label Content="Pictures" FontSize="18.667" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Vertical" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Button x:Name="B_DropPictures" Margin="5,10" DragEnter="Button_DragEnter" DragLeave="Button_DragLeave"  Drop="Button_Drop" AllowDrop="True"  Content="Drop pictures"  MinHeight="50" MaxHeight="80" MaxWidth="150" MinWidth="80"/>
+                                <TextBlock x:Name="B_NumberPicturesCAM" Margin="10,10,10,2">
+                                    <Run Text="Pics in CAM File: "/>
+                                    <Run Text="{Binding PicsInCam}"/>
+                                </TextBlock>
+                                <TextBlock x:Name="B_NumberPicturesFILES" Margin="10,2,10,10">
+                                    <Run Text="Pics to Geotag: "/>
+                                    <Run Text="{Binding PicsToGeotag}"/>
+                                </TextBlock>
+                                <CheckBox Content="Geotag pictures" IsEnabled="{Binding IsJPEG}" IsChecked="{Binding HasToGeotag, Mode=TwoWay}" VerticalAlignment="Center"/>
+                                <CheckBox Content="Shutter delay" IsChecked="{Binding ShutterDelay, Mode=TwoWay}" VerticalAlignment="Center" IsEnabled="{Binding CamUnit.IsDJI, Converter={conv:InvertBoolean}}"/>
+                                <StackPanel Orientation="Horizontal" Margin="25,5,5,5" IsEnabled="{Binding ShutterDelay}">
+                                    <TextBox Text="{Binding ShutterDelayMS}" MinWidth="60"/>
+                                    <Label Content="ms"/>
+                                </StackPanel>
+                               
+                            </StackPanel>
+                        </Grid>
+                        <Border Grid.Column="3" BorderThickness="1,0,0,0" BorderBrush="#FF292929" Margin="0,10"/>
+                        <Grid Grid.Column="2" Margin="5" IsEnabled="{Binding CamUnit.IsDJI, Converter={conv:InvertBoolean}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <Label Content="Processing Options" FontSize="18.667" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Vertical" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="10,0">
+                                <TextBlock Text="Camera Attitude" FontSize="14" TextDecorations="Underline" Margin="0,0,0,5"/>
+                                <RadioButton Content="Calculate from IMUs" IsChecked="{Binding OrientationMode, Converter={conv:Enum2Bool}, ConverterParameter=FROM_CAM, Mode=TwoWay}" GroupName="{Binding Name, StringFormat=Orientation{0}}" Click="RadioButton_Click"/>
+                                <StackPanel Orientation="Vertical">
+                                    <RadioButton Content="Manual/Fixed" IsChecked="{Binding OrientationMode, Converter={conv:Enum2Bool}, ConverterParameter=MANUAL_FIXED, Mode=TwoWay}" GroupName="{Binding Name, StringFormat=Orientation{0}}" Click="RadioButton_Click"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="RPY:" VerticalAlignment="Center" Margin="25,0,0,0"/>
+                                        <TextBox MinWidth="30" Margin="2,0" VerticalAlignment="Center" Text="{Binding ManualRoll, Mode=TwoWay}"/>
+                                        <TextBox MinWidth="30" Margin="2,0" VerticalAlignment="Center" Text="{Binding ManualPitch, Mode=TwoWay}"/>
+                                        <TextBox MinWidth="30" Margin="2,0" VerticalAlignment="Center" Text="{Binding ManualYaw, Mode=TwoWay}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <RadioButton x:Name="RB_CAM_External" Content="From external file"  IsChecked="{Binding OrientationMode, Converter={conv:Enum2Bool}, ConverterParameter=FROM_EXTERNAL, Mode=TwoWay}" GroupName="{Binding Name, StringFormat=Orientation{0}}" Click="RadioButton_Click"/>
+                                <Button Margin="10,0" DragEnter="Button_DragEnter" DragLeave="Button_DragLeave"  Drop="Button_Drop_External" AllowDrop="True"  Content="Drop file"  MinHeight="20" MaxHeight="30" MaxWidth="60" MinWidth="40" FontSize="12"/>
+                                <TextBlock Margin="10,0" HorizontalAlignment="Center">
+                                    <Run Text="Pics in file: "/>
+                                    <Run Text="{Binding PicsInExternal}"/>
+                                </TextBlock>
+                                <TextBlock Text="Heading override" FontSize="14" TextDecorations="Underline" Margin="0,10,0,5"/>
+                                <CheckBox Content="Force Heading from GPS" IsChecked="{Binding ForceGPSHeading, Mode=TwoWay}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Vertical" Grid.Column="3">
+                            <Grid  Margin="5" IsEnabled="{Binding CamUnit.IsDJI, Converter={conv:InvertBoolean}}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Label Content="Camera Instalation" FontSize="18.667" FontWeight="Bold" Margin="0,0,0,5"/>
+                                <StackPanel Grid.Row="1" Orientation="Vertical">
+                                    <RadioButton x:Name="RB_Fixed" Content="No gimbal (Use Body IMU)" materialDesign:HintAssist.Hint="Camera is fixed to airframe body and its offset and orientation is constant related to Drobit body.
+                                    In this case only one transformation will be applied using Drobit BODY Orientation.
+                                    Only Offset A will be used." IsChecked="{Binding CamFixingType, Converter={conv:Enum2Bool}, ConverterParameter=FIXED2BODY, Mode=TwoWay}" GroupName="{Binding Name}"/>
+                                    <RadioButton x:Name="RB_Gimbal" Content="Gimbal (Use Body and HotShoe IMU)" materialDesign:HintAssist.Hint="Camera is mounted on gimbal so its orientation is different from that of the airframe body and Drobit BODY.
+                                    Several axis traslations/rotations are needed with orientation from both Drobit BODY IMU and HOTSHOE IMU." IsChecked="{Binding CamFixingType, Converter={conv:Enum2Bool}, ConverterParameter=GIMBALED, Mode=TwoWay}" GroupName="{Binding Name}"/>
+                                </StackPanel>
+                            </Grid>
+                            <Grid  Margin="5">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <Label Content="KML Export Opt" Grid.ColumnSpan="2" FontSize="18.667" FontWeight="Bold" Margin="0,10,0,5"/>
+                                <Label Content="Altitude offset (m)" Grid.Row="1" Grid.Column="0"/>
+                                <TextBox Text="{Binding AltitudeOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="1"/>
+                                <Label Content="Model Scale" Grid.Row="2" Grid.Column="0"/>
+                                <TextBox Text="{Binding ModelScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="2" Grid.Column="1"/>
+                                <Label Content="Orientation Source" Grid.Row="3" Grid.Column="0"/>
+                                <Grid Grid.Row="3" Grid.Column="1" Margin="2,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <RadioButton materialDesign:HintAssist.Hint="Body IMU" IsChecked="{Binding KMLOrientationSRCBody}" Content="B" Grid.Column="0" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                                    <RadioButton materialDesign:HintAssist.Hint="Hotshoe IMU" IsChecked="{Binding KMLOrientationSRCHotshoe}" Content="H" Grid.Column="1"  VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                                </Grid>
+
+                                <Label Content="Pitch Offset (deg)" Grid.Row="4" Grid.Column="0"/>
+                                <TextBox Text="{Binding PitchOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="4" Grid.Column="1"/>
+                            
+                            </Grid>
+                        </StackPanel>
+                        
+                        <Border Grid.Column="3" BorderThickness="0,0,1,0" BorderBrush="#FF292929" Margin="0,10"/>
+                        <Grid Grid.Column="4" Margin="5" IsEnabled="{Binding CamUnit.IsDJI, Converter={conv:InvertBoolean}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition/>
+                            </Grid.ColumnDefinitions>
+                            <Label Content="Camera Offsets" FontSize="18.667" FontWeight="Bold" Margin="0" Grid.ColumnSpan="2"/>
+                            <Grid Grid.Column="0" Grid.Row="1" Margin="5,10,5,0" DataContext="{Binding CamUnit}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="0.5*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Column="0" Grid.RowSpan="7" BorderBrush="Black" BorderThickness="0,0,1,0"/>
+                                <Border Grid.Column="2" Grid.RowSpan="7" BorderBrush="Black" BorderThickness="1,0,0,0" Margin="2,0,0,0"/>
+                                <TextBlock Text="GIMBAL" Grid.Column="2" Grid.Row="0" HorizontalAlignment="Left" Margin="5,0,0,0" FontWeight="Bold" TextDecorations="Underline"/>
+                                <TextBlock Text="- Offset -" Grid.Column="1" Grid.Row="0" HorizontalAlignment="Center"/>
+                                <TextBlock Text="FIXED" Grid.Column="0" Grid.Row="0" HorizontalAlignment="Right" Margin="0,0,5,0" TextDecorations="Underline" FontWeight="Bold"/>
+                                <TextBlock Text="GPS Antenna" Grid.Column="1" Grid.Row="1" HorizontalAlignment="Center"/>
+
+                                <UniformGrid Columns="3" Grid.Row="2" Grid.Column="1">
+                                    <TextBlock Text="X" Margin="10,0,0,0" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Y" Margin="10,0,0,0" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Z" Margin="10,0,0,0" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </UniformGrid>
+
+                                <TextBlock Text="Camera" Grid.Row="3" Grid.Column="0" HorizontalAlignment="Right" Margin="0,0,5,0"/>
+                                <UniformGrid Columns="3" Grid.Column="1" Grid.Row="3">
+                                    <TextBox Text="{Binding XOffset1, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                    <TextBox Text="{Binding YOffset1, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                    <TextBox Text="{Binding ZOffset1, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                </UniformGrid>
+                                <TextBlock Text="Yaw Mot" Grid.Row="3" Grid.Column="2" Margin="5,0,0,0"/>
+
+                                <TextBlock Text="" Grid.Row="4" Grid.Column="0"/>
+                                <UniformGrid Columns="3" Grid.Column="1" Grid.Row="4">
+                                    <TextBox Text="{Binding XOffset2, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                    <TextBox Text="{Binding YOffset2, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                    <TextBox Text="{Binding ZOffset2, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                </UniformGrid>
+                                <TextBlock Text="Roll Mot" Grid.Row="4" Grid.Column="2" Margin="5,0,0,0"/>
+
+                                <TextBlock Text="" Grid.Row="5" Grid.Column="0"/>
+                                <UniformGrid Columns="3" Grid.Column="1" Grid.Row="5">
+                                    <TextBox Text="{Binding XOffset3, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                    <TextBox Text="{Binding YOffset3, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                    <TextBox Text="{Binding ZOffset3, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                </UniformGrid>
+                                <TextBlock Text="Pitch Mot" Grid.Row="5" Grid.Column="2" Margin="5,0,0,0"/>
+
+                                <TextBlock Text="" Grid.Row="6" Grid.Column="0"/>
+                                <UniformGrid Columns="3" Grid.Column="1" Grid.Row="6">
+                                    <TextBox Text="{Binding XOffset4, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                    <TextBox Text="{Binding YOffset4, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                    <TextBox Text="{Binding ZOffset4, Mode=TwoWay}" Margin="5,0,0,0"/>
+                                </UniformGrid>
+                                <TextBlock Text="Camera" Grid.Row="6" Grid.Column="2" Margin="5,0,0,0"/>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                    <Border Grid.Row="1" BorderThickness="0,2,0,0" BorderBrush="#FF292929" Margin="0,5,0,0"/>
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2.5*"/>
+                            <ColumnDefinition Width="4*"/>
+                        </Grid.ColumnDefinitions>
+                        <local:JobPlayStopControlLite Margin="5" Grid.Column="0"/>
+                        <Border BorderThickness="0,0,1,0" BorderBrush="Black" Margin="0,15" Grid.Column="0"/>
+                        <Grid Grid.Column="1" IsEnabled="{Binding Phase, Converter={conv:WorkPhase2AllowModifications}}">
+                            <Grid Margin="5">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1.5*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <Label Content="Results" VerticalAlignment="Center" Grid.ColumnSpan="3" Grid.Column="0" Grid.Row="0" HorizontalAlignment="Left" FontSize="18.667" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <Grid Grid.Row="1" Grid.ColumnSpan="3">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Content="Open Output Folder" MinWidth="120" Grid.Row="1" Grid.Column="2" FontSize="9" Margin="10,5" Command="{Binding Path=DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}, AncestorLevel=3}}" CommandParameter="{Binding .}" HorizontalAlignment="Center"/>
+                                    </Grid>
+                                </Grid>
+                                <Border BorderThickness="1,0,0,0" BorderBrush="Black" Margin="0,10" Grid.Column="1"/>
+                                <Grid Grid.Column="1" Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Content="Statistics" VerticalAlignment="Center" Grid.ColumnSpan="3" Grid.Column="0" Grid.Row="0" HorizontalAlignment="Left" FontSize="18.667" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <Label Content="Total CAM:" Grid.Row="1" Grid.Column="0" FontWeight="Bold"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PicsInCam}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Label Content="High Q CAM:" Grid.Row="1" Grid.Column="2" FontWeight="Bold"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding HighQCameras}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Label Content="Medium Q CAM:" Grid.Row="1" Grid.Column="4" FontWeight="Bold"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="5" Text="{Binding MedQCameras}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Label Content="Low Q CAM:" Grid.Row="2" Grid.Column="2" FontWeight="Bold"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding LowQCameras}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Label Content="Not Proc CAM:" Grid.Row="2" Grid.Column="4" FontWeight="Bold"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="5" Text="{Binding LowestQCameras}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Grid>
+    </Border>
+    </materialDesign:Card>
+</UserControl>

@@ -1,0 +1,73 @@
+﻿<UserControl x:Class="ControlCenter.UserControls.PostProcessingControls.JobProjectContainerListControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:ControlCenter.UserControls.PostProcessingControls"
+             xmlns:conv="clr-namespace:ControlCenter.Converters"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:mv="clr-namespace:ControlCenter.ModelViews"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="1280"
+             >
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.TextBox.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <UserControl.DataContext>
+        <mv:ProcessingViewModel x:Name="processingViewModel"/>
+    </UserControl.DataContext>
+    
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <materialDesign:Card Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" MinHeight="50" VerticalContentAlignment="Stretch">
+            <materialDesign:ColorZone Mode="PrimaryMid" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+                <DockPanel>
+                    <TextBlock Text="PPK Project List" FontSize="20" DockPanel.Dock="Left" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                    <Button Visibility="Collapsed" Command="{Binding LoadProjectsCommand}" Margin="5,10,19,10" Content="{materialDesign:PackIcon Kind=Refresh}" DockPanel.Dock="Right" HorizontalAlignment="Right" Style="{StaticResource MaterialDesignFloatingActionMiniAccentButton}"/>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="0,0,10,0">
+                        <Button Content="Open PROJECTS" FontSize="12"  Command="{Binding OpenProjectsFolderCommand}" CommandParameter="projects" Margin="0,0,10,0" Style="{StaticResource MaterialDesignRaisedLightButton}"/>
+                        <Button Content="Open DOWNLOADS"  FontSize="12" Command="{Binding OpenProjectsFolderCommand}" CommandParameter="downloads" Style="{StaticResource MaterialDesignRaisedLightButton}"/>
+                    </StackPanel>
+                    
+                </DockPanel>
+            </materialDesign:ColorZone>
+        </materialDesign:Card>
+        <materialDesign:DialogHost x:Name="dialogHostAddProjectFile" Identifier="DialogAddProject" Grid.Column="0" Grid.Row="1">
+            <DockPanel Grid.Column="0" Grid.Row="1" HorizontalAlignment="Stretch" Margin="0,10">
+                <TextBox x:Name="TB_NewProjectName" MinWidth="200" materialDesign:HintAssist.Hint="Name for new Project"  DockPanel.Dock="Left" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,5" FontSize="14" Text="{Binding NewProjectName, Mode=TwoWay}" GotFocus="TB_NewProjectName_GotFocus"/>
+                <Button DockPanel.Dock="Right" Content="{materialDesign:PackIcon Kind=Plus}" Width="48" Height="48" HorizontalAlignment="Right" Margin="5,5,10,5" Command="{Binding AddProcessingProjectCommand}">
+                    <Button.CommandParameter>
+                        <MultiBinding Converter="{conv:MultiValueConverter}">
+                            <Binding Path="Text" ElementName="TB_NewProjectName"/>
+                            <Binding ElementName="LB_ProjectJobs"/>
+                        </MultiBinding>
+                    </Button.CommandParameter>
+                </Button>
+            </DockPanel>
+        </materialDesign:DialogHost>
+        <ListBox x:Name="LB_ProjectJobs" Grid.Column="0" Grid.Row="2" materialDesign:RippleAssist.IsDisabled="True" ItemsSource="{Binding JobProjectList}" HorizontalContentAlignment="Stretch" Style="{DynamicResource MaterialDesignListBox}" ItemContainerStyle="{DynamicResource MaterialDesignListBoxItemDrobit}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <local:JobProjectUnitControl/>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <GridSplitter Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" Background="{DynamicResource LG_splitter}" Width="2"/>
+        <local:JobProjectContainer Grid.Column="2" Grid.Row="1" Grid.RowSpan="2" DataContext="{Binding ElementName=LB_ProjectJobs, Path=SelectedItem}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Margin="0,5"/>
+    </Grid>
+</UserControl>

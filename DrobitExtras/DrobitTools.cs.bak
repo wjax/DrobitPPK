@@ -1,0 +1,175 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
+namespace DrobitExtras
+{
+    public class DrobitTools
+    {
+        private static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        
+        public static readonly string LOCAL_DROBIT_FOLDER = @"C:\DROBIT";
+        public static readonly string LOCAL_DOWNLOADS_SUBFOLDER = @"C:\DROBIT\DOWNLOADS";
+        public static readonly string LOCAL_PROJECTS_SUBFOLDER = @"C:\DROBIT\PROJECTS";
+
+        public static bool CheckFolders()
+        {
+            if (Directory.Exists(LOCAL_DOWNLOADS_SUBFOLDER) && Directory.Exists(LOCAL_PROJECTS_SUBFOLDER))
+                return true;
+            else
+                return false;
+        }
+
+        public static bool CheckFolderExists(string path)
+        {
+            if (Directory.Exists(path))
+                return true;
+            else
+                return false;
+        }
+
+        public static string ConcatenatePath(string[] paths)
+        {
+            string sPath = "";
+            sPath = Path.Combine(paths);
+
+            return sPath;
+        }
+
+        public static void CreateFolderIfNotExists(string path)
+        {
+            Directory.CreateDirectory(path);
+        }
+
+        public static long millisFromEpoch(DateTime d)
+        {
+            return (long)(d - UnixEpoch).TotalMilliseconds;
+        }
+
+        public static long millisFromEpochNow()
+        {
+            return (long)(DateTime.Now - UnixEpoch).TotalMilliseconds;
+        }
+
+        public static DateTime currentDate()
+        {
+            return new DateTime();
+        }
+        public static DateTime fromMillis(long millis)
+        {
+            TimeSpan time = TimeSpan.FromMilliseconds(millis);
+            DateTime result = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            result = result.Add(time);
+
+            return result;
+
+        }
+
+        public static string fromMillisNice(long millis)
+        {
+            string format = "dd MMM HH:mm:ss";
+            DateTime d = fromMillis(millis);
+
+            string date = d.ToString(format); ;
+
+            return date;
+
+        }
+
+        public static string CopyFile2Folder(string fileUri, string path2copy)
+        {
+            string destinationUri = Path.Combine(path2copy, Path.GetFileName(fileUri));
+            File.Copy(fileUri, destinationUri, true);
+
+            return destinationUri;
+        }
+
+        public static void EmptyDirectory(string path)
+        {
+            if (Directory.Exists(path))
+            {
+                Array.ForEach(Directory.GetFiles(path), File.Delete);
+
+                string[] subFolderPaths = Directory.GetDirectories(path);
+                foreach (string subDir in subFolderPaths)
+                    EmptyDirectory(subDir);
+            }
+        }
+
+        public static bool IsRinexVersion3x(string uri)
+        {
+            int MAXLINES = 10;
+            int i = 0;
+            foreach (string line in File.ReadLines(uri))
+            {
+                if (Regex.IsMatch(line, @"3\..*RINEX VERSION"))
+                    return true;
+
+                if (i > MAXLINES)
+                    return false;
+
+                i++;
+            }
+            return false;
+        }
+        public static bool IsCompactRinex(string uri)
+        {
+            int MAXLINES = 10;
+            int i = 0;
+            foreach (string line in File.ReadLines(uri))
+            {
+                if (Regex.IsMatch(line, @"COMPACT.*RINEX"))
+                    return true;
+
+                if (i > MAXLINES)
+                    return false;
+
+                i++;
+            }
+            return false;
+        }
+
+        public static bool CopyFolderContents(string SourcePath, string DestinationPath, bool onlyFiles=false)
+        {
+            try
+            {
+                if (Directory.Exists(SourcePath))
+                {
+                    if (Directory.Exists(DestinationPath) == false)
+                    {
+                        Directory.CreateDirectory(DestinationPath);
+                    }
+
+                    foreach (string files in Directory.GetFiles(SourcePath))
+                    {
+                        FileInfo fileInfo = new FileInfo(files);
+                        fileInfo.CopyTo(Path.Combine(DestinationPath, fileInfo.Name), true);
+                    }
+                    if (!onlyFiles)
+                    {
+                        foreach (string drs in Directory.GetDirectories(SourcePath))
+                        {
+                            DirectoryInfo directoryInfo = new DirectoryInfo(drs);
+                            if (CopyFolderContents(drs, Path.Combine(DestinationPath, directoryInfo.Name)) == false)
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+
+        }
+
+
+    }
+}

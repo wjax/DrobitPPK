@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS -type f \\\\\\( -name \"*.yml\" -o -name \"*.yaml\" -o -name \".github\" \\\\\\) 2>/dev/null | head -10)",
+      "Bash(find /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS -maxdepth 2 -name \"LICENSE*\" -o -name \"license*\" -o -name \"*.license\" 2>/dev/null | head -20)",
+      "Bash(grep -r \"LicensingKey\\\\|licensing\\\\|Licensing\" /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS/ControlCenter --include=\"*.cs\" 2>/dev/null | head -10)",
+      "Bash(git -C /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS log --oneline --max-count=15)",
+      "Bash(wc -l /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS/ControlCenter/*.cs 2>/dev/null | tail -1)",
+      "Bash(ls -1 /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS/*/*.csproj | xargs -I {} basename {} | sort)",
+      "Bash(wc -l /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS/ControlCenter/**/*.cs 2>/dev/null | tail -1)",
+      "Bash(git -C /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS branch -a)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote:*)",
+      "Bash(find . -name \"*.cs\" -type f | xargs grep -l \"KML\\\\|RINEX\\\\|UBX\\\\|CAM\\\\|\\\\.pos\\\\|geotag\" | head -15)",
+      "Bash(find . -name \"*.cs\" | xargs grep -l \"Map\\\\|Coordinate\\\\|CoordinateChanger\" | head -10)",
+      "Bash(find . -path \"*/BingMaps/*\" -o -path \"*/GMAPUC/*\" | grep -E \"\\\\.\\(cs|xaml\\)$\" | head -10)",
+      "Bash(git push:*)",
+      "Bash(grep -r \"hardcoded\\\\|HARDCODED\\\\|TODO.*key\\\\|TODO.*password\\\\|TODO.*secret\\\\|TODO.*token\" /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS --include=\"*.cs\" 2>/dev/null | head -20)",
+      "Bash(grep -r \"licensing\\\\|license.*key\\\\|anti.*tamper\" /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS --include=\"*.cs\" -i 2>/dev/null | head -30)",
+      "Bash(grep -r \"SSH\\\\|SFTP\\\\|password\\\\|credential\" /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS/Communications --include=\"*.cs\" -i 2>/dev/null | head -30)",
+      "Bash(find /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS -path \"*/obj\" -prune -o -path \"*/packages\" -prune -o -type f -name \"*.cs\" -print | xargs grep -l \"SSH\\\\|SFTP\" 2>/dev/null)",
+      "Bash(find /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS -path \"*/obj\" -prune -o -path \"*/packages\" -prune -o -type f -name \"*.cs\" -print | xargs grep -l \"drobit.es\\\\|drobit\\\\.es\" 2>/dev/null)",
+      "Bash(grep -r \"@\\\\\"http\\\\|\\\\\"http\" /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS --include=\"*.cs\" -i 2>/dev/null | grep -v \"//\\\\|obj/\" | head -40)",
+      "Bash(grep -r \"MapControl\\\\|BingMaps\\\\|APIKey\\\\|bing\\\\|maps.*key\" /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS --include=\"*.cs\" --include=\"*.xaml\" -i 2>/dev/null | head -20)",
+      "Bash(find /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS -name \"*.user\" -o -name \".userprefs\" 2>/dev/null | head -10)",
+      "Bash(git -C /c/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS log --all --source --remotes --decorate 2>/dev/null | head -50)",
+      "Bash(ls -d C:/DATA/Development/dotNET/DrobitDesktopSW/DDC_PPK_OSS/*/)"
+    ]
+  }
+}
